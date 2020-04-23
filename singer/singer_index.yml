@@ -1,0 +1,31 @@
+# An index of singer.io plugins.
+# File layout description:
+#  - name   - what the plugin calls itself (may be different from the pip package name)
+#  - source - can be anything pip accepts (generally a git reference or a pip package name)
+#  - alias  - if supporting multiple forks of a tap, this provide a means to differentiate
+
+singer-taps:
+  - { name: tap-adwords }
+  - { name: tap-jira }
+  - { name: tap-kafka, source: pipelinewise-tap-kafka }
+  - { name: tap-mysql }
+  - { name: tap-oracle }
+  - { name: tap-pardot }
+  - { name: tap-s3-csv, source: pipelinewise-tap-s3-csv }
+  - { name: tap-salesforce, source: "git+https://gitlab.com/meltano/tap-salesforce.git@master" }
+  - { name: tap-salesforce, alias: tap-salesforce-singer }
+  - { name: tap-salesforce, alias: tap-salesforce-pw, source: pipelinewise-tap-salesforce }
+  - { name: tap-snowflake, source: pipelinewise-tap-snowflake }
+  - { name: tap-zendesk }
+
+singer-targets:
+  - { name: target-redshift }
+  - { name: target-s3-csv, source: pipelinewise-target-s3-csv }
+  - { name: target-csv }
+  - { name: target-snowflake }
+
+failing-taps:
+  - { name: tap-postgres, source: pipelinewise-tap-postgres }
+
+failing-targets:
+  - { name: target-postgres }
