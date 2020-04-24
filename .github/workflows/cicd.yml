@@ -1,0 +1,88 @@
+name: CI/CD Builds
+
+on:
+  push:
+    branches:
+      - "**"
+    paths-ignore:
+      - docs/**.md
+
+jobs:
+  python_build_and_test:
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 4
+      matrix:
+        python-version:
+          - 3.7
+          - 3.8
+    steps:
+      - name: Clone git repo
+        uses: actions/checkout@v1
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies (python pip)
+        run: |
+          python3 -m pip install --upgrade pip
+          pip3 install flake8 pytest
+      - name: Install tapdance
+        run: |
+          python3 setup.py install
+      - name: Lint with flake8
+        run: |
+          # stop the build if there are Python syntax errors or undefined names
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+      # - name: Test with pytest
+      #   run: |
+      #     pytest
+
+
+  pypi_publish:
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 4
+      matrix:
+        python-version:
+          - 3.7
+          - 3.8
+    needs:
+      - python_build_and_test
+    steps:
+      - name: Clone git repo
+        uses: actions/checkout@v1
+      - name: Set up Python (v${{ matrix.python-version }})
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Generate build number (BUILD_NUMBER)
+        id: buildnumber
+        uses: einaregilsson/build-number@v2
+        with:
+          token: ${{secrets.github_token}}
+      - name: Push to PyPi (https://pypi.org/project/tapdance/)
+        env:
+          # VERSION: ${{ github.ref }}
+          BRANCH_NAME: ${{ github.ref }}
+          PYPI_USER: ${{ secrets.PYPI_USER }}
+          PYPI_PASS: ${{ secrets.PYPI_SECRET }}
+          BUILD_NUMBER: ${{ steps.buildnumber.outputs.build_number }}
+        run: |
+          echo -e "Installing twine...\n\n"
+          pip install twine
+          echo -e "\nCreating setup package...\n\n"
+          python setup.py sdist
+          echo -e "\nPublishing to version ref '$VERSION'...\n\n"
+          twine upload -u $PYPI_USER -p $PYPI_PASS dist/*
+      - name: Sleep before install
+        run: |
+          sleep 60
+      - name: Test install (pip install tapdance)
+        run: |
+          pip install tapdance
+      - name: Test uninstall (pip uninstall tapdance)
+        run: |
+          pip uninstall -y tapdance

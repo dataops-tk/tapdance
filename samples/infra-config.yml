@@ -1,0 +1,6 @@
+project_shortname: TapdanceTest
+aws_region: us-east-1
+resource_tags:
+  # TODO: Add any labels which you want to apply to all resources:
+  admin_contact: admin.email@sample.com
+  project_name: Tapdance

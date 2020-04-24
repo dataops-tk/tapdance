@@ -9,7 +9,7 @@ from pathlib import Path
 import fire
 
 from slalom.dataops import env, io, jobs
-from slalom.dataops.logs import logged, logged_block, get_logger
+from tapdance import logged, logged_block, get_logger
 
 IMAGE_BASE = "slalomggp/singer"
 SINGER_PLUGINS_INDEX = os.environ.get("SINGER_PLUGINS_INDEX", "./singer_index.yml")
@@ -665,7 +665,7 @@ def _build_plugin_image(
         f" --build-arg PLUGIN_SOURCE={source}"
         f" --build-arg PLUGIN_ALIAS={alias}"
         f" -t {image_name}"
-        f" -f plugin.Dockerfile"
+        f" -f singer-plugin.Dockerfile"
         f" ."
     )
     jobs.run_command(build_cmd)
