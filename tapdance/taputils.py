@@ -6,10 +6,9 @@ import json
 import yaml
 import sys
 from pathlib import Path
-import fire
 
 from slalom.dataops import env, io, jobs
-from tapdance import logged, logged_block, get_logger
+from logless import logged, logged_block, get_logger
 
 IMAGE_BASE = "slalomggp/singer"
 SINGER_PLUGINS_INDEX = os.environ.get("SINGER_PLUGINS_INDEX", "./singer_index.yml")
@@ -711,19 +710,3 @@ def build_all_images(push=False, pre=False):
     _build_all_standalone(push=push, pre=pre)
     _build_all_composite(push=push, pre=pre)
 
-
-def main():
-    fire.Fire(
-        {
-            "install": install,
-            "discover": discover,
-            "plan": plan,
-            "sync": sync,
-            "build_image": build_image,
-            "build_all_images": build_all_images,
-        }
-    )
-
-
-if __name__ == "__main__":
-    main()

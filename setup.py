@@ -42,7 +42,7 @@ setup(
     entry_points={
         "console_scripts": [
             # Register CLI commands:
-            # "s-tap = slalom.dataops.taputils:main",
+            "tapdance = tapdance.cli:main",
         ]
     },
     include_package_data=True,
