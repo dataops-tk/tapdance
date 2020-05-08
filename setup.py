@@ -47,6 +47,7 @@ setup(
     },
     include_package_data=True,
     install_requires=[
+        "slalom.dataops",
         "docker",
         "fire",
         "joblib",
