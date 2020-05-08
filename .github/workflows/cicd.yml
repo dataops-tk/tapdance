@@ -99,6 +99,7 @@ jobs:
           python-version: 3.7
       - name: Install tapdance
         run: python3 setup.py install
+        # TODO: Ensure latest version or just install via setup.py
       - name: Login to docker
         run: docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_SECRET }}
       - name: Build and push all pre-release singer images
