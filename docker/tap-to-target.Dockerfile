@@ -2,21 +2,21 @@ ARG tap_alias
 ARG target_alias=target-csv
 ARG source_image_suffix
 
-FROM slalomggp/singer:tap-${tap_alias}${source_image_suffix} as tap
+FROM aaronsteers/tapdance:tap-${tap_alias}${source_image_suffix} as tap
 
 ARG tap_alias
 ARG source_image_suffix
 
-RUN echo "Building from source tap image:  slalomggp/singer:${tap_alias}${source_image_suffix}"
+RUN echo "Building from source tap image:  aaronsteers/tapdance:${tap_alias}${source_image_suffix}"
 
 
-FROM slalomggp/singer:target-${target_alias}${source_image_suffix} as target
+FROM aaronsteers/tapdance:target-${target_alias}${source_image_suffix} as target
 
 ARG tap_alias
 ARG target_alias
 ARG source_image_suffix
 
-RUN echo "Building from source target image:  slalomggp/singer:${target_alias}${source_image_suffix}"
+RUN echo "Building from source target image:  aaronsteers/tapdance:${target_alias}${source_image_suffix}"
 
 COPY --from=tap /venv/tap-${tap_alias} /venv/tap-${tap_alias}
 
@@ -36,4 +36,4 @@ RUN if [ ! -e $(which target-${target_alias}) ]; then \
 # RUN tap-${tap_alias} --help && \
 #     target-${target_alias} --help
 
-CMD [ "s-tap sync ${tap_alias} --config_file=.secrets/${tap_alias}-config.json ${target_alias} --target_config_file=.secrets/${target_alias}-config.json" ]
+CMD [ "tapdance sync ${tap_alias} --config_file=.secrets/${tap_alias}-config.json ${target_alias} --target_config_file=.secrets/${target_alias}-config.json" ]

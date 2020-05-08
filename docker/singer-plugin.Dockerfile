@@ -7,19 +7,18 @@ ARG prerelease=false
 RUN pip install boto3 s3fs
 
 RUN if [ "${prerelease}" = "false" ]; then \
-    echo "Installing slalom.dataops libraries... " && \
-    pip install --upgrade slalom.dataops; \
+    echo "Installing tapdance libraries... " && \
+    pip install --upgrade tapdance; \
     else \
-    echo "Installing pre-release slalom.dataops libraries... " && \
-    pip install --upgrade --pre slalom.dataops; \
+    echo "Installing pre-release tapdance libraries... " && \
+    pip install --upgrade --pre tapdance; \
     fi
 
 ARG PLUGIN_NAME=tap-pardot
 ARG PLUGIN_SOURCE=${PLUGIN_NAME}
 ARG PLUGIN_ALIAS=${PLUGIN_NAME}
 
-# RUN s-tap install ${PLUGIN_NAME} --source=${PLUGIN_SOURCE} --alias=${PLUGIN_ALIAS}
-RUN s-tap install ${PLUGIN_NAME} ${PLUGIN_SOURCE} ${PLUGIN_ALIAS}
+RUN tapdance install ${PLUGIN_NAME} ${PLUGIN_SOURCE} ${PLUGIN_ALIAS}
 
 ENV PLUGIN_NAME=${PLUGIN_NAME} \
     PLUGIN_SOURCE=${PLUGIN_SOURCE} \
@@ -34,4 +33,4 @@ ENV PATH="/venv/${PLUGIN_ALIAS}:${PATH}"
 RUN test -e $(which ${PLUGIN_ALIAS}) || exit 1
 # RUN ${PLUGIN_ALIAS} --help
 
-CMD [ "s-tap plan ${PLUGIN_ALIAS} --config-file=.secrets/${PLUGIN_ALIAS}-config.json" ]
+CMD [ "tapdance plan ${PLUGIN_ALIAS} --config-file=.secrets/${PLUGIN_ALIAS}-config.json" ]

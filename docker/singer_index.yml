@@ -6,6 +6,7 @@
 
 singer-taps:
   - { name: tap-adwords }
+  - { name: tap-covid-19 }
   - { name: tap-jira }
   - { name: tap-kafka, source: pipelinewise-tap-kafka }
   - { name: tap-mysql }
