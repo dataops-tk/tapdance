@@ -1,4 +1,4 @@
-name: CI/CD Builds
+name: Publish to PyPi and DockerHub
 
 on:
   push:
