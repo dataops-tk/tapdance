@@ -540,7 +540,7 @@ def _get_docker_tap_image(tap_alias, target_alias=None):
 
 
 def _rerun_dockerized(tap_alias, target_alias=None):
-    cmd = f"s-tap {' '.join(sys.argv[1:])}"
+    cmd = f"tapdance {' '.join(sys.argv[1:])}"
     env = {
         k: v
         for k, v in os.environ.items()
