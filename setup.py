@@ -48,6 +48,8 @@ setup(
     include_package_data=True,
     install_requires=[
         "slalom.dataops",
+        "logless",
+        "uio",
         "docker",
         "fire",
         "joblib",
