@@ -10,10 +10,10 @@ from pathlib import Path
 from slalom.dataops import env, io, jobs
 from logless import logged, logged_block, get_logger
 
-IMAGE_BASE = "slalomggp/singer"
+IMAGE_BASE = "aaronsteers/tapdance"
 SINGER_PLUGINS_INDEX = os.environ.get("SINGER_PLUGINS_INDEX", "./singer_index.yml")
 
-logging = get_logger("slalom.dataops.taputils")
+logging = get_logger("tapdance")
 
 try:
     from slalom.dataops import dockerutils
@@ -26,7 +26,7 @@ except Exception as ex:
 _ROOT_DIR = "/projects/my-project"
 VENV_ROOT = "/venv"
 INSTALL_ROOT = "/usr/bin"
-BASE_DOCKER_IMAGE = "slalomggp/singer"
+BASE_DOCKER_IMAGE = "aaronsteers/tapdance"
 
 
 def _get_root_dir():
@@ -561,18 +561,18 @@ def _rerun_dockerized(tap_alias, target_alias=None):
             return docker_run_cmd
 
         volumes = {os.path.abspath("."): "/projects/my-project"}
-        DEV_DEBUG = False  # Used to test while developing, override python lib path
-        if DEV_DEBUG:
-            container_lib = "/usr/local/lib/python3.8/site-packages/slalom"
-            host_lib = "C:\\Files\\Source\\dataops-tools\\slalom"
-            volumes[host_lib] = container_lib
-        docker_run_cmd = _build_docker_run(
-            image=image_name,
-            command=cmd,
-            environment=env,
-            working_dir="/projects/my-project",
-            volumes=volumes,
-        )
+        # DEV_DEBUG = False  # Used to test while developing, override python lib path
+        # if DEV_DEBUG:
+        #     container_lib = "/usr/local/lib/python3.8/site-packages/tapdance"
+        #     host_lib = "C:\\Files\\Source\\tapdance\\tapdance"
+        #     volumes[host_lib] = container_lib
+        # docker_run_cmd = _build_docker_run(
+        #     image=image_name,
+        #     command=cmd,
+        #     environment=env,
+        #     working_dir="/projects/my-project",
+        #     volumes=volumes,
+        # )
         jobs.run_command(docker_run_cmd)
     return True
 

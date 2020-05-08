@@ -7,11 +7,11 @@ ARG prerelease=false
 RUN pip install boto3 s3fs
 
 RUN if [ "${prerelease}" = "false" ]; then \
-    echo "Installing slalom.dataops libraries... " && \
-    pip install --upgrade slalom.dataops; \
+    echo "Installing tapdance libraries... " && \
+    pip install --upgrade tapdance; \
     else \
-    echo "Installing pre-release slalom.dataops libraries... " && \
-    pip install --upgrade --pre slalom.dataops; \
+    echo "Installing pre-release tapdance libraries... " && \
+    pip install --upgrade --pre tapdance; \
     fi
 
 ARG PLUGIN_NAME=tap-pardot
