@@ -50,6 +50,7 @@ setup(
         "slalom.dataops",
         "logless",
         "uio",
+        "runnow",
         "docker",
         "fire",
         "joblib",
