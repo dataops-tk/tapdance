@@ -566,13 +566,13 @@ def _rerun_dockerized(tap_alias, target_alias=None):
         #     container_lib = "/usr/local/lib/python3.8/site-packages/tapdance"
         #     host_lib = "C:\\Files\\Source\\tapdance\\tapdance"
         #     volumes[host_lib] = container_lib
-        # docker_run_cmd = _build_docker_run(
-        #     image=image_name,
-        #     command=cmd,
-        #     environment=env,
-        #     working_dir="/projects/my-project",
-        #     volumes=volumes,
-        # )
+        docker_run_cmd = _build_docker_run(
+            image=image_name,
+            command=cmd,
+            environment=env,
+            working_dir="/projects/my-project",
+            volumes=volumes,
+        )
         jobs.run_command(docker_run_cmd)
     return True
 
