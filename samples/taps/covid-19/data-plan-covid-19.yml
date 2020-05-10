@@ -7,7 +7,7 @@ selected_tables:
     - git_sha
     - git_file_name
     - git_last_modified
-    - row_number
+    - __sdc_row_number
     - date
     - states
     - positive
@@ -35,7 +35,7 @@ selected_tables:
     - git_sha
     - git_file_name
     - git_last_modified
-    - row_number
+    - __sdc_row_number
     - state
     - county
     - state_name
@@ -53,7 +53,7 @@ selected_tables:
     - git_sha
     - git_file_name
     - git_last_modified
-    - row_number
+    - __sdc_row_number
     - state
     - state_name
     - geo_id
@@ -70,7 +70,7 @@ selected_tables:
     - git_sha
     - git_file_name
     - git_last_modified
-    - row_number
+    - __sdc_row_number
     - state
     - state_name
     - geo_id
@@ -88,7 +88,7 @@ selected_tables:
     - git_sha
     - git_file_name
     - git_last_modified
-    - row_number
+    - __sdc_row_number
     - geo_id
     - state
     - state_name
@@ -113,7 +113,7 @@ selected_tables:
     - git_sha
     - git_file_name
     - git_last_modified
-    - row_number
+    - __sdc_row_number
     - state
     - positive
     - positive_score
@@ -144,7 +144,7 @@ selected_tables:
     - git_sha
     - git_file_name
     - git_last_modified
-    - row_number
+    - __sdc_row_number
     - date
     - state
     - positive
@@ -172,7 +172,7 @@ selected_tables:
     - git_sha
     - git_file_name
     - git_last_modified
-    - row_number
+    - __sdc_row_number
     - state
     - covid19_site_old
     - covid19_site
@@ -194,7 +194,7 @@ selected_tables:
     - git_sha
     - git_file_name
     - git_last_modified
-    - row_number
+    - __sdc_row_number
     - state
     - state_name
     - state_local_government
@@ -212,7 +212,7 @@ selected_tables:
     - git_sha
     - git_file_name
     - git_last_modified
-    - row_number
+    - __sdc_row_number
     - date
     - datetime
     - country
@@ -243,7 +243,7 @@ selected_tables:
     - git_sha
     - git_file_name
     - git_last_modified
-    - row_number
+    - __sdc_row_number
     - date
     - datetime
     - country
@@ -260,7 +260,7 @@ selected_tables:
     - git_sha
     - git_file_name
     - git_last_modified
-    - row_number
+    - __sdc_row_number
     - date
     - datetime
     - date_of_notification
@@ -288,7 +288,7 @@ selected_tables:
     - git_sha
     - git_file_name
     - git_last_modified
-    - row_number
+    - __sdc_row_number
     - date
     - datetime
     - date_of_notification
@@ -314,7 +314,7 @@ selected_tables:
     - git_sha
     - git_file_name
     - git_last_modified
-    - row_number
+    - __sdc_row_number
     - date
     - datetime
     - date_of_notification
@@ -346,7 +346,7 @@ selected_tables:
     - git_sha
     - git_file_name
     - git_last_modified
-    - row_number
+    - __sdc_row_number
     - date
     - datetime
     - province_state
@@ -375,7 +375,7 @@ selected_tables:
     - git_sha
     - git_file_name
     - git_last_modified
-    - row_number
+    - __sdc_row_number
     - location
     - date
     - datetime
@@ -395,7 +395,7 @@ selected_tables:
     - git_sha
     - git_file_name
     - git_last_modified
-    - row_number
+    - __sdc_row_number
     - name
     - alpha_2
     - alpha_3
@@ -410,6 +410,27 @@ selected_tables:
     ignored_columns:
     - git_owner
     - git_html_url
+  neherlab_icu_capacity:
+    selected_columns:
+    - git_repository
+    - git_url
+    - git_path
+    - git_sha
+    - git_file_name
+    - git_last_modified
+    - __sdc_row_number
+    - country
+    - acute_care
+    - acute_care_per_100k
+    - imcu
+    - icu
+    - critical_care
+    - critical_care_per_100k
+    - percent_of_total
+    - gdp
+    ignored_columns:
+    - git_owner
+    - git_html_url
   neherlab_population:
     selected_columns:
     - git_repository
@@ -418,7 +439,7 @@ selected_tables:
     - git_sha
     - git_file_name
     - git_last_modified
-    - row_number
+    - __sdc_row_number
     - name
     - population
     - country
@@ -438,7 +459,7 @@ selected_tables:
     - git_sha
     - git_file_name
     - git_last_modified
-    - row_number
+    - __sdc_row_number
     - date
     - datetime
     - county
@@ -458,7 +479,7 @@ selected_tables:
     - git_sha
     - git_file_name
     - git_last_modified
-    - row_number
+    - __sdc_row_number
     - date
     - datetime
     - state
