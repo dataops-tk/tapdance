@@ -10,8 +10,12 @@ from pathlib import Path
 from slalom.dataops import env, io, jobs
 from logless import logged, logged_block, get_logger
 
-IMAGE_BASE = "aaronsteers/tapdance"
+BASE_DOCKER_REPO = "dataopstk/tapdance"
 SINGER_PLUGINS_INDEX = os.environ.get("SINGER_PLUGINS_INDEX", "./singer_index.yml")
+VENV_ROOT = "/venv"
+INSTALL_ROOT = "/usr/bin"
+_ROOT_DIR = "/projects/my-project"
+# _ROOT_DIR = "."
 
 logging = get_logger("tapdance")
 
@@ -22,11 +26,6 @@ except Exception as ex:
     logging.warning(f"Docker libraries were not able to be loaded ({ex}).")
 
 
-# ROOT_DIR = "."
-_ROOT_DIR = "/projects/my-project"
-VENV_ROOT = "/venv"
-INSTALL_ROOT = "/usr/bin"
-BASE_DOCKER_IMAGE = "aaronsteers/tapdance"
 
 
 def _get_root_dir():
@@ -533,10 +532,10 @@ def _get_docker_tap_image(tap_alias, target_alias=None):
     if tap_alias.startswith("tap-"):
         tap_alias = tap_alias.replace("tap-", "")
     if not target_alias:
-        return f"{BASE_DOCKER_IMAGE}:tap-{tap_alias}"
+        return f"{BASE_DOCKER_REPO}:tap-{tap_alias}"
     if target_alias.startswith("target-"):
         target_alias = target_alias.replace("target-", "")
-    return f"{BASE_DOCKER_IMAGE}:{tap_alias}-to-{target_alias}"
+    return f"{BASE_DOCKER_REPO}:{tap_alias}-to-{target_alias}"
 
 
 def _rerun_dockerized(tap_alias, target_alias=None):
@@ -652,7 +651,7 @@ def _build_plugin_image(
 ):
     source = source or plugin_name
     alias = alias or plugin_name
-    image_name = f"{IMAGE_BASE}:{alias}"
+    image_name = f"{BASE_DOCKER_REPO}:{alias}"
     build_cmd = f"docker build"
     if source_image:
         build_cmd += f" --build-arg source_image={source_image}"
@@ -678,7 +677,7 @@ def _build_composite_image(tap_alias, target_alias, push=False, pre=False):
         tap_alias = tap_alias.replace("tap-", "", 1)
     if target_alias.startswith("target-"):
         target_alias = target_alias.replace("target-", "", 1)
-    image_name = f"{IMAGE_BASE}:{tap_alias}-to-{target_alias}"
+    image_name = f"{BASE_DOCKER_REPO}:{tap_alias}-to-{target_alias}"
     build_cmd = f"docker build"
     if pre:
         build_cmd += " --build-arg source_image_suffix=--pre"
