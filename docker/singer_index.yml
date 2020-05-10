@@ -20,7 +20,7 @@ singer-taps:
   - { name: tap-zendesk }
 
 singer-targets:
-  - { name: target-redshift }
+  - { name: target-redshift, source: pipelinewise-target-redshift }
   - { name: target-s3-csv, source: pipelinewise-target-s3-csv }
   - { name: target-csv }
   - { name: target-snowflake }

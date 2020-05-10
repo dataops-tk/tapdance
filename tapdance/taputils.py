@@ -18,7 +18,7 @@ _ROOT_DIR = "/projects/my-project"
 # _ROOT_DIR = "."
 
 # These plugins will attempt to scrape and pass along AWs Credentials from the local environment.
-S3_TARGET_IDS = ["S3-CSV"]
+S3_TARGET_IDS = ["S3-CSV", "REDSHIFT"]
 
 logging = get_logger("tapdance")
 

@@ -1,8 +1,12 @@
-# Protect project secrets
+# Project secrets
 
 **/.secrets/**/*
 !**/.secrets/*.template
 !**/.secrets/README.md
+
+# Execution output files
+
+.output
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
