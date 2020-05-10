@@ -8,7 +8,6 @@ def main():
     fire.Fire(
         {
             "install": install,
-            "discover": discover,
             "plan": plan,
             "sync": sync,
             "build_image": build_image,
