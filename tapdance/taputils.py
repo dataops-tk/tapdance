@@ -10,7 +10,7 @@ from pathlib import Path
 from slalom.dataops import env, io, jobs
 from logless import logged, logged_block, get_logger
 
-BASE_DOCKER_REPO = "aaronsteers/tapdance"  # TODO: Revert to dataopstk/tapdance
+BASE_DOCKER_REPO = "dataopstk/tapdance"
 SINGER_PLUGINS_INDEX = os.environ.get("SINGER_PLUGINS_INDEX", "./singer_index.yml")
 VENV_ROOT = "/venv"
 INSTALL_ROOT = "/usr/bin"
