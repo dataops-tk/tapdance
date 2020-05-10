@@ -1,0 +1,68 @@
+selected_tables:
+  Account:
+    selected_columns:
+    - Id
+    - IsDeleted
+    - ParentId
+    - CreatedDate
+    - LastModifiedDate
+    - SystemModstamp
+    ignored_columns:
+    - MasterRecordId
+    - Name
+    - Type
+    # ...
+  Opportunity:
+    selected_columns:
+    - Id
+    - IsDeleted
+    - StageName
+    - CloseDate
+    - CreatedDate
+    - LastModifiedDate
+    - SystemModstamp
+    ignored_columns:
+    - AccountId
+    - RecordTypeId
+    - IsPrivate
+    - Name
+    - Description
+    - Amount
+    - Probability
+    - ExpectedRevenue
+    - Type
+  OpportunityTag:
+    selected_columns:
+    - Id
+    - TagDefinitionId
+    - ItemId
+    - CreatedDate
+    - SystemModstamp
+    - IsDeleted
+    - Name
+    - Type
+  RecordType:
+    selected_columns:
+    - Id
+    - Name
+    - DeveloperName
+    - NamespacePrefix
+    - Description
+    - BusinessProcessId
+    - SobjectType
+    - IsActive
+    - CreatedById
+    - CreatedDate
+    - LastModifiedById
+    - LastModifiedDate
+    - SystemModstamp
+ignored_tables:
+  - AccountContactRelation
+  - AccountContactRole
+  - AccountFeed
+  - AccountHistory
+  - AccountPartner
+  - AccountShare
+  - AccountTag
+  - AccountTeamMember
+  # ...

@@ -1,0 +1,203 @@
+selected_tables:
+  campaigns:
+    selected_columns:
+    - id
+    ignored_columns:
+    - name
+    - cost
+  email_clicks:
+    selected_columns:
+    - id
+    - prospect_id
+    - list_email_id
+    - drip_program_action_id
+    - email_template_id
+    - tracker_redirect_id
+    - created_at
+    ignored_columns:
+    - url
+  list_memberships:
+    selected_columns:
+    - id
+    - list_id
+    - prospect_id
+    - created_at
+    - updated_at
+    ignored_columns:
+    - opted_out
+  lists:
+    selected_columns:
+    - id
+    - is_public
+    - is_dynamic
+    - is_crm_visible
+    - created_at
+    - updated_at
+    ignored_columns:
+    - name
+    - title
+    - description
+  opportunities:
+    selected_columns:
+    - id
+    - campaign_id
+    - closed_at
+    - created_at
+    - updated_at
+    ignored_columns:
+    - name
+    - value
+    - probability
+    - type
+    - stage
+    - status
+  prospect_accounts:
+    selected_columns:
+    - id
+    - updated_at
+    - created_at
+    ignored_columns:
+    - name
+    - assigned_to
+    - Account_Status
+    - Alliance_Partner
+    - annual_revenue
+    - billing_address_one
+    - billing_address_two
+    - billing_city
+    - billing_country
+    - billing_state
+    - billing_zip
+    - description
+    - employees
+    - fax
+    - industry
+    - Market_Focus
+    - number
+    - ownership
+    - phone
+    - rating
+    - shipping_address_one
+    - shipping_address_two
+    - shipping_city
+    - shipping_country
+    - shipping_state
+    - shipping_zip
+    - sic
+    - site
+    - ticker_symbol
+    - type
+    - website
+  prospects:
+    selected_columns:
+    - id
+    - campaign_id
+    - prospect_account_id
+    - last_activity_at
+    - is_do_not_email
+    - is_do_not_call
+    - is_reviewed
+    - is_starred
+    - created_at
+    - updated_at
+    ignored_columns:
+    - salutation
+    - first_name
+    - last_name
+    - email
+    - password
+    - company
+    - website
+    - job_title
+    - department
+    - country
+    - address_one
+    - address_two
+    - city
+    - state
+    - territory
+    - zip
+    - phone
+    - fax
+    - source
+    - annual_revenue
+    - employees
+    - industry
+    - years_in_business
+    - comments
+    - notes
+    - score
+    - grade
+    - recent_interaction
+    - crm_lead_fid
+    - crm_contact_fid
+    - crm_owner_fid
+    - crm_account_fid
+    - crm_last_sync
+    - crm_url
+    - opted_out
+  users:
+    selected_columns:
+    - id
+    - created_at
+    - updated_at
+    ignored_columns:
+    - email
+    - first_name
+    - last_name
+    - job_title
+    - role
+  visitor_activities:
+    selected_columns:
+    - id
+    - prospect_id
+    - visitor_id
+    - email_id
+    - email_template_id
+    - list_email_id
+    - form_id
+    - form_handler_id
+    - site_search_query_id
+    - landing_page_id
+    - paid_search_id_id
+    - multivariate_test_variation_id
+    - visitor_page_view_id
+    - file_id
+    - created_at
+    ignored_columns:
+    - type
+    - type_name
+    - details
+    - campaign
+  visitors:
+    selected_columns:
+    - id
+    - created_at
+    - updated_at
+    ignored_columns:
+    - page_view_count
+    - ip_address
+    - hostname
+    - campaign_parameter
+    - medium_parameter
+    - source_parameter
+    - content_parameter
+    - term_parameter
+  visits:
+    selected_columns:
+    - id
+    - visitor_id
+    - prospect_id
+    - first_visitor_page_view_at
+    - last_visitor_page_view_at
+    - created_at
+    - updated_at
+    ignored_columns:
+    - visitor_page_view_count
+    - visitor_page_views
+    - duration_in_seconds
+    - campaign_parameter
+    - medium_parameter
+    - source_parameter
+    - content_parameter
+    - term_parameter
