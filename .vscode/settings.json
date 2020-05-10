@@ -1,3 +1,6 @@
 {
-    "workbench.colorTheme": "Community Material Theme Palenight"
+    "workbench.colorTheme": "Community Material Theme Palenight",
+    "python.formatting.provider": "black",
+    "editor.formatOnSave": true,
+    "autoDocstring.docstringFormat": "numpy"
 }

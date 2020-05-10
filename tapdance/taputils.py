@@ -10,12 +10,15 @@ from pathlib import Path
 from slalom.dataops import env, io, jobs
 from logless import logged, logged_block, get_logger
 
-BASE_DOCKER_REPO = "dataopstk/tapdance"
+BASE_DOCKER_REPO = "aaronsteers/tapdance"  # TODO: Revert to dataopstk/tapdance
 SINGER_PLUGINS_INDEX = os.environ.get("SINGER_PLUGINS_INDEX", "./singer_index.yml")
 VENV_ROOT = "/venv"
 INSTALL_ROOT = "/usr/bin"
 _ROOT_DIR = "/projects/my-project"
 # _ROOT_DIR = "."
+
+# These plugins will attempt to scrape and pass along AWs Credentials from the local environment.
+S3_TARGET_IDS = ["S3-CSV"]
 
 logging = get_logger("tapdance")
 
@@ -24,8 +27,6 @@ try:
 except Exception as ex:
     dockerutils = None  # type: ignore
     logging.warning(f"Docker libraries were not able to be loaded ({ex}).")
-
-
 
 
 def _get_root_dir():
@@ -111,7 +112,21 @@ def _get_config_file(plugin_name, config_dir=None):
     "installing '{plugin_name}' as '{alias or plugin_name}' "
     "using 'pip3 install {source or plugin_name}'"
 )
-def install(plugin_name, source=None, alias=None):
+def install(plugin_name: str, source: str = None, alias: str = None):
+    """
+    Install the requested plugin to the local machine.
+
+    Arguments:
+        plugin_name {str} -- The name of the plugin to install, including the tap- or
+        target- prefix.
+
+    Keyword Arguments:
+        source {str} -- Optional. Overrides the pip installation source.
+        alias {str} -- Optional. Overrides the name (alias) of the plugin.
+
+    Raises:
+        RuntimeError: [description]
+    """
     source = source or plugin_name
     alias = alias or plugin_name
 
@@ -130,20 +145,15 @@ def install(plugin_name, source=None, alias=None):
     jobs.run_command(f"ln -s {venv_dir}/bin/{plugin_name} {install_path}")
 
 
-@logged("running discovery on '{tap_name}'")
-def discover(tap_name, config_file=None, catalog_dir=None):
-    if env.is_windows() or env.is_mac():
-        _rerun_dockerized(tap_name)
-        return
-    config_file = config_file or _get_config_file(f"tap-{tap_name}")
-    catalog_dir = catalog_dir or _get_catalog_output_dir(tap_name)
-    catalog_file = f"{catalog_dir}/{tap_name}-catalog-raw.json"
-    io.create_folder(catalog_dir)
-    jobs.run_command(f"tap-{tap_name} --config {config_file} --discover > {catalog_file}")
-
-
 @logged("Updating plan file for 'tap-{tap_name}'")
-def plan(tap_name, taps_dir=None, config_file=None, config_dir=None, rescan=None):
+def plan(
+    tap_name: str,
+    *,
+    rescan: bool = None,
+    taps_dir: str = None,
+    config_dir: str = None,
+    config_file: str = None,
+):
     """
     Perform all actions necessary to prepare (plan) for a tap execution.
 
@@ -152,7 +162,22 @@ def plan(tap_name, taps_dir=None, config_file=None, config_dir=None, rescan=None
         describe planned inclusions/exclusions.
      2. Create a new `catalog-selected.json` file which applies the plan file and which
         can be used by the tap to run data extractions.
+
+    Arguments:
+        tap_name {str} -- [description]
+
+    Keyword-Only Arguments:
+        rescan {bool} -- Optional. True to force a rescan and replace existing metadata.
+        (default: False)
+        taps_dir {str} -- Optional. The directory containing the rules file. (Default=cwd)
+        (`data.select`).
+        config_dir {str} -- Optional. The default location of config, catalog and other
+        potentially sensitive information. (Recommended to be excluded from source control.)
+        (Default="${taps_dir}/.secrets")
+        config_file {str} -- Optional. The location of the JSON config file which contains
+        config for the specified plugin. (Default=f"${config_dir}/${plugin_name}-config.json")
     """
+
     if env.is_windows() or env.is_mac():
         _rerun_dockerized(tap_name)
         return
@@ -171,7 +196,7 @@ def plan(tap_name, taps_dir=None, config_file=None, config_dir=None, rescan=None
         logging.info(f"Cleaning up empty catalog file: {catalog_file}")
         io.delete_file(catalog_file)
     if rescan or not io.file_exists(catalog_file):
-        discover(tap_name, config_file, catalog_dir)
+        _discover(tap_name, config_file, catalog_dir)
     rules_file = _get_rules_file(taps_dir)
     select_rules = [
         line.split("#")[0].rstrip()
@@ -221,20 +246,50 @@ def plan(tap_name, taps_dir=None, config_file=None, config_dir=None, rescan=None
 
 @logged("syncing '{table_name or 'all tables'}' from '{tap_name}' to '{target_name}'")
 def sync(
-    tap_name,
-    target_name="csv",
-    table_name="*",
-    taps_dir=None,
+    tap_name: str,
+    target_name: str = "csv",
+    table_name: str = "*",
+    taps_dir: str = None,
     *,
-    config_file=None,
-    config_dir=None,
-    catalog_dir=None,
-    target_config_file=None,
-    rescan=False,
-    state_file=None,
+    rescan: bool = False,
     dockerized: bool = None,
+    config_dir: str = None,
+    config_file: str = None,
+    catalog_dir: str = None,
+    target_config_file: str = None,
+    state_file: str = None,
 ):
-    """Run a tap sync. If table_name is omitted, all sources will be extracted."""
+    """
+    Synchronize data from tap to target.
+
+    Arguments:
+        tap_name {str} -- The name/alias of the source tap, without the `tap-` prefix.
+
+    Keyword Arguments:
+        target_name {str} -- The name/alias of the target, without the `tap-` prefix.
+        (default: {"csv"})
+        table_name {str} -- The name of the table to sync or "*" to sync all.
+        (default: {"*"})
+        rescan {bool} -- Optional. True to force a rescan and replace existing metadata.
+        (default: False)
+        dockerized {bool} -- Optional. True or False to force whether the command is run
+        dockerized. If omitted, the best option will be selected automatically.
+        taps_dir {str} -- Optional. The directory containing the rules file. (Default=cwd)
+        (`data.select`).
+        config_dir {str} -- Optional. The default location of config, catalog and other
+        potentially sensitive information. (Recommended to be excluded from source control.)
+        (Default="${taps_dir}/.secrets")
+        config_file {str} -- Optional. The location of the JSON config file which contains
+        config for the specified tap. (Default=f"${config_dir}/${plugin_name}-config.json")
+
+        catalog_dir {str} -- Optional. The output directory to be used for saving catalog
+        files. If not provided, a path will be generated automatically within `.output` or
+        a path specified by the `TAP_SCRATCH_DIR` environment variable.
+        target_config_file {str} -- Optional. The location of the JSON config file which contains
+        config for the specified target. (Default=f"${config_dir}/${plugin_name}-config.json")
+        state_file {str} -- Optional. The path to a state file. If not provided, a state
+        file path will be generated automatically within `catalog_dir`.
+    """
     if dockerized is None:
         if env.is_windows() or env.is_mac():
             logging.info(
@@ -287,7 +342,57 @@ def sync(
         )
 
 
-S3_TARGET_IDS = ["S3-CSV"]
+def build_all_images(push: bool = False, pre: bool = False):
+    """
+    Build all images.
+
+    :param push: Push images after building
+    :param pre: Create and publish pre-release builds
+    """
+    _build_all_standalone(push=push, pre=pre)
+    _build_all_composite(push=push, pre=pre)
+
+
+def build_image(
+    tap_or_plugin_alias: str,
+    target_alias: str = None,
+    push: bool = False,
+    pre: bool = False,
+):
+    """
+    Build a single image. If tap and target are both provided, any required upstream images
+    will be built as well.
+
+    Arguments:
+        tap_or_plugin_alias {str} -- The name of the tap (without the `tap-` prefix).
+
+    Keyword Arguments:
+        target_alias {str} -- Optional. The name of the target (without the `target-` prefix).
+        push {bool} -- True to push images to image repository after build. (default: {False})
+        pre {bool} -- True to use and create prelease versions. (default: {False})
+    """
+    name, source, alias = _get_plugin_info(f"tap-{tap_or_plugin_alias}")
+    _build_plugin_image(name, source=source, alias=alias, push=push, pre=pre)
+    if target_alias:
+        name, source, alias = _get_plugin_info(f"target-{target_alias}")
+        _build_plugin_image(name, source=source, alias=alias, push=push, pre=pre)
+        _build_composite_image(
+            tap_alias=tap_or_plugin_alias, target_alias=target_alias, push=push, pre=pre
+        )
+
+
+@logged("running discovery on '{tap_name}'")
+def _discover(tap_name: str, config_file: str = None, catalog_dir: str = None):
+    if env.is_windows() or env.is_mac():
+        _rerun_dockerized(tap_name)
+        return
+    config_file = config_file or _get_config_file(f"tap-{tap_name}")
+    catalog_dir = catalog_dir or _get_catalog_output_dir(tap_name)
+    catalog_file = f"{catalog_dir}/{tap_name}-catalog-raw.json"
+    io.create_folder(catalog_dir)
+    jobs.run_command(
+        f"tap-{tap_name} --config {config_file} --discover > {catalog_file}"
+    )
 
 
 def _get_customized_target_config_file(
@@ -440,7 +545,10 @@ def _check_table_rule(match_text: str, rule_text: str):
         rule_text = rule_text[:-2]
     if len(rule_text.split(".")) > 2:
         return None  # Column rules do not apply to tables
-    tap_name, table_name = (match_text.split(".")[0], ".".join(match_text.split(".")[1:]))
+    tap_name, table_name = (
+        match_text.split(".")[0],
+        ".".join(match_text.split(".")[1:]),
+    )
     tap_rule, table_rule = (rule_text.split(".")[0], ".".join(rule_text.split(".")[1:]))
     if not _is_match(tap_name, tap_rule):
         return None
@@ -576,17 +684,6 @@ def _rerun_dockerized(tap_alias, target_alias=None):
     return True
 
 
-def build_image(tap_or_plugin_alias, target_alias=None, push=False, pre=False):
-    name, source, alias = _get_plugin_info(f"tap-{tap_or_plugin_alias}")
-    _build_plugin_image(name, source=source, alias=alias, push=push, pre=pre)
-    if target_alias:
-        name, source, alias = _get_plugin_info(f"target-{target_alias}")
-        _build_plugin_image(name, source=source, alias=alias, push=push, pre=pre)
-        _build_composite_image(
-            tap_alias=tap_or_plugin_alias, target_alias=target_alias, push=push, pre=pre
-        )
-
-
 def _get_plugins_list(plugins_index=None):
     plugins_index = plugins_index or SINGER_PLUGINS_INDEX
     if not io.file_exists(plugins_index):
@@ -697,15 +794,3 @@ def _build_composite_image(tap_alias, target_alias, push=False, pre=False):
 
 def _push(image_name):
     jobs.run_command(f"docker push {image_name}")
-
-
-def build_all_images(push=False, pre=False):
-    """
-    Build all images.
-
-    :param push: Push images after building
-    :param pre: Create and publish pre-release builds
-    """
-    _build_all_standalone(push=push, pre=pre)
-    _build_all_composite(push=push, pre=pre)
-
