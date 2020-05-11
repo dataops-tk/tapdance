@@ -104,8 +104,8 @@ jobs:
       - name: Build and push all *prioritized* pre-release singer images
         run: |
           cd docker
+          tapdance build_image covid-19 s3-csv --pre --push
           tapdance build_image covid-19 redshift --pre --push
-          tapdance build_image covid-19 s3_csv --pre --push
           tapdance build_image covid-19 postgres --pre --push
       - name: Build and push all pre-release singer images
         run: cd docker && tapdance build_all_images --pre --push
