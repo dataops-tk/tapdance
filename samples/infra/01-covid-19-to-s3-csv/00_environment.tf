@@ -23,7 +23,8 @@ provider "aws" {
 
 output "env_summary" { value = module.env.summary }
 module "env" {
-  source         = "git::https://github.com/slalom-ggp/dataops-infra//catalog/aws/environment?ref=master"
+  # source         = "git::https://github.com/slalom-ggp/dataops-infra//catalog/aws/environment?ref=master"
+  source         = "../../../../dataops-infra/catalog/aws/environment"
   name_prefix    = local.name_prefix
   aws_region     = local.aws_region
   resource_tags  = local.resource_tags

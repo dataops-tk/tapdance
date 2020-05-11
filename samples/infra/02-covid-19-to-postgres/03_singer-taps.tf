@@ -6,7 +6,8 @@ locals {
 output "singer_summary" { value = module.singer_taps_on_aws.summary }
 module "singer_taps_on_aws" {
   # BOILERPLATE HEADER (NO NEED TO CHANGE):
-  source        = "git::https://github.com/slalom-ggp/dataops-infra//catalog/aws/singer-taps?ref=master"
+  # source        = "git::https://github.com/slalom-ggp/dataops-infra//catalog/aws/singer-taps?ref=master"
+  source        = "../../../../dataops-infra/catalog/aws/singer-taps"
   name_prefix   = local.name_prefix
   environment   = module.env.environment
   resource_tags = local.resource_tags
@@ -44,7 +45,7 @@ module "singer_taps_on_aws" {
     id = "postgres"
     settings = {
       port                  = split(":", module.postgres.endpoint)[1]
-      dbname                = "pg-db"
+      dbname                = "default_db"
       default_target_schema = "dbo"
 
       host     = split(":", module.postgres.endpoint)[0]

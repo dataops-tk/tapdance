@@ -6,7 +6,8 @@ locals {
 output "singer_summary" { value = module.singer_taps_on_aws.summary }
 module "singer_taps_on_aws" {
   # BOILERPLATE HEADER (NO NEED TO CHANGE):
-  source        = "git::https://github.com/slalom-ggp/dataops-infra//catalog/aws/singer-taps?ref=master"
+  # source        = "git::https://github.com/slalom-ggp/dataops-infra//catalog/aws/singer-taps?ref=master"
+  source        = "../../../../dataops-infra/catalog/aws/singer-taps"
   name_prefix   = local.name_prefix
   environment   = module.env.environment
   resource_tags = local.resource_tags
@@ -47,14 +48,11 @@ module "singer_taps_on_aws" {
       s3_bucket             = module.data_lake.s3_data_bucket
       port                  = split(":", module.redshift.endpoint)[1]
       dbname                = "redshift_db"
-      default_target_schema = "dbo"
+      default_target_schema = "public"
 
       host     = split(":", module.redshift.endpoint)[0]
       user     = local.redshift_admin_user
       password = local.redshift_admin_pass
-
-      # port                  = split(":", module.redshift.endpoint)[1]
-      # dbname                = module.redshift.database_name
     }
     secrets = {
       # password = "secret"

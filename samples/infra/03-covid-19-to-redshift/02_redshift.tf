@@ -1,13 +1,14 @@
 # NOTE: Requires AWS policy 'AmazonRDSFullAccess' on the terraform account
 
 locals {
-  redshift_admin_user = "mysqladmin"
-  redshift_admin_pass = "asdfASDF12"
+  redshift_admin_user = "rsadmin"
+  redshift_admin_pass = "asdfAS12"
 }
 
 output "summary" { value = module.redshift.summary }
 module "redshift" {
-  source        = "git::https://github.com/slalom-ggp/dataops-infra.git//catalog/aws/redshift?ref=master"
+  # source        = "git::https://github.com/slalom-ggp/dataops-infra.git//catalog/aws/redshift?ref=master"
+  source        = "../../../../dataops-infra/catalog/aws/redshift"
   name_prefix   = "${local.project_shortname}-"
   environment   = module.env.environment
   resource_tags = local.resource_tags

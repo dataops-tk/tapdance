@@ -4,3 +4,5 @@ aws_region: us-east-1
 resource_tags:
   admin_contact: sample-admin@email.com
   cost_center: 001-sample
+  deployment_type: dev/test
+  note: Managed by Terraform

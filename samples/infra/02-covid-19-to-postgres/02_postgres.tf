@@ -1,13 +1,14 @@
 # NOTE: Requires AWS policy 'AmazonRDSFullAccess' on the terraform account
 
 locals {
-  pg_admin_user = "mysqladmin"
-  pg_admin_pass = "asdfASDF12"
+  pg_admin_user = "postgresadmin"
+  pg_admin_pass = "asdfAS12"
 }
 
 output "summary" { value = module.postgres.summary }
 module "postgres" {
-  source        = "git::https://github.com/slalom-ggp/dataops-infra.git//catalog/aws/postgres?ref=master"
+  # source        = "git::https://github.com/slalom-ggp/dataops-infra.git//catalog/aws/postgres?ref=master"
+  source        = "../../../../dataops-infra/catalog/aws/postgres"
   name_prefix   = "${local.project_shortname}-"
   environment   = module.env.environment
   resource_tags = local.resource_tags
