@@ -1,6 +1,6 @@
 import fire
 
-from .taputils import install, discover, plan, sync, build_image, build_all_images
+from .taputils import install, plan, sync, build_all_images, build_image
 
 
 def main():
@@ -10,8 +10,8 @@ def main():
             "install": install,
             "plan": plan,
             "sync": sync,
-            "build_image": build_image,
             "build_all_images": build_all_images,
+            "build_image": build_image,
         }
     )
 
