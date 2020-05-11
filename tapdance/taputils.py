@@ -402,16 +402,30 @@ def _get_customized_target_config_file(
     new_config = config_defaults.copy()
     if target_name.upper() in S3_TARGET_IDS:
         logging.info("Scanning for AWS creds for target 'target-{target_name}'")
-        for secret in ["aws_access_key_id", "aws_secret_access_key"]:
-            if secret not in config_defaults:
-                if secret in os.environ:
-                    logging.info(f"Found env var {secret} for 'target-{target_name}'")
-                    new_config[secret] = os.environ[secret]
-                if secret.upper() in os.environ:
-                    logging.info(
-                        f"Found env var {secret.upper()} for 'target-{target_name}'"
-                    )
-                    new_config[secret] = os.environ[secret.upper()]
+        (
+            aws_access_key_id,
+            aws_secret_access_key,
+            aws_session_token,
+        ) = io.parse_aws_creds()
+        if aws_access_key_id and "aws_access_key_id" not in config_defaults:
+            logging.info(f"Passing 'aws_access_key_id' to 'target-{target_name}'")
+            new_config["aws_access_key_id"] = aws_access_key_id
+        if aws_secret_access_key and "aws_secret_access_key" not in config_defaults:
+            logging.info(f"Passing 'aws_secret_access_key' to 'target-{target_name}'")
+            new_config["aws_secret_access_key"] = aws_secret_access_key
+        if aws_session_token and "aws_session_token" not in config_defaults:
+            logging.info(f"Passing 'aws_session_token' to 'target-{target_name}'")
+            new_config["aws_session_token"] = aws_session_token
+    new_config = _replace_placeholders(
+        new_config, tap_name, table_name, tap_version_num
+    )
+    new_file_path = target_config_file.replace(".json", f"-{table_name}.json")
+    io.create_text_file(new_file_path, json.dumps(new_config))
+    return new_file_path
+
+
+def _replace_placeholders(config_dict, tap_name, table_name, tap_version_num):
+    new_config = config_dict.copy()
     for setting_name in new_config.keys():
         for param, replacement_value in {
             "tap": tap_name,
@@ -427,9 +441,7 @@ def _get_customized_target_config_file(
                 new_config[setting_name] = new_config[setting_name].replace(
                     search_key, replacement_value
                 )
-    new_file_path = target_config_file.replace(".json", f"{table_name}.json")
-    io.create_text_file(new_file_path, json.dumps(new_config))
-    return new_file_path
+    return new_config
 
 
 def _sync_one_table(
