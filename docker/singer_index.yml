@@ -1,8 +1,8 @@
 # An index of singer.io plugins.
 # File layout description:
-#  - name   - what the plugin calls itself (may be different from the pip package name)
-#  - source - can be anything pip accepts (generally a git reference or a pip package name)
-#  - alias  - if supporting multiple forks of a tap, this provide a means to differentiate
+#  - name      - what the plugin calls itself (may be different from the pip package name)
+#  - source    - can be anything pip accepts (generally a git reference or a pip package name)
+#  - alias     - if supporting multiple forks of a tap, this provide a means to differentiate
 
 singer-taps:
   - { name: tap-adwords }
@@ -12,6 +12,7 @@ singer-taps:
   - { name: tap-mysql }
   - { name: tap-oracle }
   - { name: tap-pardot }
+  - { name: tap-postgres, source: pipelinewise-tap-postgres }
   - { name: tap-s3-csv, source: pipelinewise-tap-s3-csv }
   - { name: tap-salesforce, source: "git+https://gitlab.com/meltano/tap-salesforce.git@master" }
   - { name: tap-salesforce, alias: tap-salesforce-singer }
@@ -20,13 +21,12 @@ singer-taps:
   - { name: tap-zendesk }
 
 singer-targets:
-  - { name: target-redshift, source: pipelinewise-target-redshift }
   - { name: target-s3-csv, source: pipelinewise-target-s3-csv }
   - { name: target-csv }
+  - { name: target-postgres, source: "pipelinewise-target-postgres" }
+  - { name: target-redshift, source: "git+https://github.com/transferwise/pipelinewise-target-redshift@master" } # Pending 2.0.0 release to PyPi (https://pypi.org/project/pipelinewise-target-redshift/)
   - { name: target-snowflake }
 
 failing-taps:
-  - { name: tap-postgres, source: pipelinewise-tap-postgres }
 
 failing-targets:
-  - { name: target-postgres }
