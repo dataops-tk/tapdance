@@ -443,7 +443,13 @@ def _sync_one_table(
 ):
     tap_cmd = f"tap-{tap_name} --config {config_file} --catalog {table_catalog_file}"
     if io.file_exists(table_state_file):
-        local_state_file = io.make_local(table_state_file)
+        if io.is_local(table_state_file):
+            local_state_file = table_state_file
+        else:
+            local_state_file = os.path.join(
+                io.get_scratch_dir(), os.path.basename(table_state_file)
+            )
+            io.download_file(table_state_file, local_state_file)
         tap_cmd = f"{tap_cmd} --state {local_state_file}"
     tmp_target_config = _get_customized_target_config_file(
         target_name, target_config_file, tap_name=tap_name, table_name=table_name
