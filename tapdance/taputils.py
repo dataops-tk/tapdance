@@ -52,6 +52,15 @@ def _get_taps_dir(override=None):
     return io.make_local(taps_dir)  # if remote path provided, download locally
 
 
+def _get_state_file_path():
+    result = os.environ.get("TAP_STATE_FILE", None)
+    if not result:
+        logging.warning(
+            "Could not locate env var 'TAP_STATE_FILE'. State may not be maintained."
+        )
+    return result
+
+
 def _get_catalog_output_dir(tap_name):
     result = f"{_get_scratch_dir()}/taps/{tap_name}-catalog"
     io.create_folder(result)
@@ -325,7 +334,9 @@ def sync(
     for table in list_of_tables:
         # Call each tap independently so that table state files are kept separate:
         tmp_catalog_file = f"{catalog_dir}/{tap_name}-{table}-catalog.json"
-        table_state_file = state_file or f"{catalog_dir}/{table}-state.json"
+        table_state_file = (
+            state_file or _get_state_file_path() or f"{catalog_dir}/{table}-state.json"
+        )
         _create_single_table_catalog(
             tap_name=tap_name,
             table_name=table,
@@ -418,21 +429,33 @@ def _get_customized_target_config_file(
     config_defaults = json.loads(io.get_text_file_contents(target_config_file))
     new_config = config_defaults.copy()
     if target_name.upper() in S3_TARGET_IDS:
-        logging.info("Scanning for AWS creds for target 'target-{target_name}'")
-        (
-            aws_access_key_id,
-            aws_secret_access_key,
-            aws_session_token,
-        ) = io.parse_aws_creds()
-        if aws_access_key_id and "aws_access_key_id" not in config_defaults:
-            logging.info(f"Passing 'aws_access_key_id' to 'target-{target_name}'")
-            new_config["aws_access_key_id"] = aws_access_key_id
-        if aws_secret_access_key and "aws_secret_access_key" not in config_defaults:
-            logging.info(f"Passing 'aws_secret_access_key' to 'target-{target_name}'")
-            new_config["aws_secret_access_key"] = aws_secret_access_key
-        if aws_session_token and "aws_session_token" not in config_defaults:
-            logging.info(f"Passing 'aws_session_token' to 'target-{target_name}'")
-            new_config["aws_session_token"] = aws_session_token
+        if (
+            "aws_access_key_id" in config_defaults
+            and "aws_secret_access_key" in config_defaults
+        ):
+            logging.info("AWS creds captured from 'target-{target_name}' config")
+        else:
+            logging.info("Scanning for AWS creds for target 'target-{target_name}'...")
+            (
+                aws_access_key_id,
+                aws_secret_access_key,
+                aws_session_token,
+            ) = io.parse_aws_creds()
+            if aws_access_key_id and aws_secret_access_key:
+                logging.info(
+                    f"Passing 'aws_access_key_id' and 'aws_secret_access_key' "
+                    f"credentials to 'target-{target_name}'"
+                )
+                new_config["aws_access_key_id"] = aws_access_key_id
+                new_config["aws_secret_access_key"] = aws_secret_access_key
+            else:
+                logging.warning(
+                    f"Could not find 'aws_access_key_id' and 'aws_secret_access_key' "
+                    f"credentials for 'target-{target_name}'"
+                )
+            if aws_session_token:
+                logging.info(f"Passing 'aws_session_token' to 'target-{target_name}'")
+                new_config["aws_session_token"] = aws_session_token
     new_config = _replace_placeholders(
         new_config, tap_name, table_name, tap_version_num
     )
