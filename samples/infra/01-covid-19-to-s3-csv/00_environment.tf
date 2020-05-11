@@ -5,7 +5,7 @@ data "local_file" "config_yml" { filename = "${path.module}/infra-config.yml" }
 locals {
   config             = yamldecode(data.local_file.config_yml.content)
   secrets_folder     = "${path.module}/../../.secrets"
-  secrets_file_path  = "${local.secrets_folder}/aws-secrets-manager-secrets.yml"
+  secrets_file_path  = "${local.secrets_folder}/infra-secrets.yml"
   aws_creds_file     = "${local.secrets_folder}/aws-credentials"
   aws_creds_validate = length(file(local.aws_creds_file)) # Confirm file exists
   project_shortname  = local.config["project_shortname"]
@@ -23,8 +23,7 @@ provider "aws" {
 
 output "env_summary" { value = module.env.summary }
 module "env" {
-  # source         = "git::https://github.com/slalom-ggp/dataops-infra//catalog/aws/environment?ref=master"
-  source         = "../../../../dataops-infra/catalog/aws/environment"
+  source         = "git::https://github.com/slalom-ggp/dataops-infra//catalog/aws/environment?ref=master"
   name_prefix    = local.name_prefix
   aws_region     = local.aws_region
   resource_tags  = local.resource_tags

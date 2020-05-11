@@ -7,9 +7,9 @@ locals {
 
 output "summary" { value = module.redshift.summary }
 module "redshift" {
-  # source        = "git::https://github.com/slalom-ggp/dataops-infra.git//catalog/aws/redshift?ref=master"
-  source        = "../../../../dataops-infra/catalog/aws/redshift"
-  name_prefix   = "${local.project_shortname}-"
+  # BOILERPLATE HEADER (NO NEED TO CHANGE):
+  source        = "git::https://github.com/slalom-ggp/dataops-infra.git//catalog/aws/redshift?ref=master"
+  name_prefix   = local.name_prefix
   environment   = module.env.environment
   resource_tags = local.resource_tags
 
@@ -17,6 +17,7 @@ module "redshift" {
 
   identifier          = "redshift-db"
   jdbc_port           = 5439
+  jdbc_cidr           = ["0.0.0.0/0"] # Allow query connections from any IP
   admin_username      = local.redshift_admin_user
   admin_password      = local.redshift_admin_pass
   skip_final_snapshot = true # allows simple DB deletion for POC environments

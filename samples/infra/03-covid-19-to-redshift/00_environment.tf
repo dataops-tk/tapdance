@@ -5,7 +5,7 @@ data "local_file" "config_yml" { filename = "${path.module}/infra-config.yml" }
 locals {
   config             = yamldecode(data.local_file.config_yml.content)
   secrets_folder     = "${path.module}/../../.secrets"
-  secrets_file_path  = "${local.secrets_folder}/aws-secrets-manager-secrets.yml"
+  secrets_file_path  = "${local.secrets_folder}/infra-secrets.yml"
   aws_creds_file     = "${local.secrets_folder}/aws-credentials"
   aws_creds_validate = length(file(local.aws_creds_file)) # Confirm file exists
   project_shortname  = local.config["project_shortname"]

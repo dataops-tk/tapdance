@@ -5,8 +5,7 @@ locals {
 output "singer_summary" { value = module.singer_taps_on_aws.summary }
 module "singer_taps_on_aws" {
   # BOILERPLATE HEADER (NO NEED TO CHANGE):
-  # source        = "git::https://github.com/slalom-ggp/dataops-infra//catalog/aws/singer-taps?ref=master"
-  source        = "../../../../dataops-infra/catalog/aws/singer-taps"
+  source        = "git::https://github.com/slalom-ggp/dataops-infra//catalog/aws/singer-taps?ref=master"
   name_prefix   = local.name_prefix
   environment   = module.env.environment
   resource_tags = local.resource_tags
@@ -36,20 +35,20 @@ module "singer_taps_on_aws" {
     }
   ]
 
-  data_lake_type         = "S3"
-  data_lake_storage_path = "s3://${module.data_lake.s3_data_bucket}/data/raw"
+  # data_lake_type         = "S3"
+  # data_lake_storage_path = "s3://${module.data_lake.s3_data_bucket}/data/raw"
 
-  # # Target is not needed when data_lake_storage_path is provided:
-  # target = {
-  #   # Output to S3 CSV by default:
-  #   id = "s3-csv"
-  #   settings = {
-  #     s3_key_prefix = "data/raw/sample-tap/v1/"
-  #     s3_bucket     = module.data_lake.s3_data_bucket
-  #   }
-  #   secrets = {
-  #     aws_access_key_id     = "../.secrets/aws-secrets-manager-secrets.yml:S3_CSV_aws_access_key_id"
-  #     aws_secret_access_key = "../.secrets/aws-secrets-manager-secrets.yml:S3_CSV_aws_secret_access_key"
-  #   }
-  # }
+  # Target is not needed when data_lake_storage_path is provided:
+  target = {
+    # Output to S3 CSV by default:
+    id = "s3-csv"
+    settings = {
+      s3_bucket     = module.data_lake.s3_data_bucket
+      s3_key_prefix = "data/raw/{tap}/{table}/v{version}/"
+    }
+    secrets = {
+      aws_access_key_id     = "${local.secrets_file_path}:aws_access_key_id"
+      aws_secret_access_key = "${local.secrets_file_path}:aws_secret_access_key"
+    }
+  }
 }
