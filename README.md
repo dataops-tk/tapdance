@@ -13,12 +13,12 @@ _A bakers' dozen reasons to dance._
 5. **Tapdance is opinionated** in regards to ELT best practices.
 6. **Tapdance supports DevOps best practices** out of box, specifically: CI/CD and IAC.
 7. **Tapdance is platform-agnostic** and runs on Windows, Mac, and Linux alike using a _**docker-first**_ approach.
-8. **Tapdance plugins are curated** - when multiple forks exist for a given plugin, we will curate the best we find and use that as the default.
+8. **Tapdance plugins are curated** - when multiple forks exist for a given plugin, we will curate the best we find and use those as the default. (See the latest list [here](docker/singer_index.yml).)
 9. **Tapdance uses a data-lake-first approach** - while it may be possible to load directly into an RDMS, we prioritize approaches where data lands first in the data lake before ingestion into a SQL DW.
 10. **Tapdance is rules-based** - instead of pointing and clicking a hundred times, simply tell tapdance what type of data you want (or what type of data you don't want).
-11. **Tapdance knows your source is not static** and it automatically updates itself in response to your data.
+11. **Tapdance knows your source schema is not static** and it adapts automatically in response to upstream schema changes.
 12. **Tapdance provides stream-isolation** - data can be extracted (and retried) one-table-at-a-time, even if this is not a feature of the plugin.
-13. **Tapdance automatically takes care of state** - state files are managed automatically for you.
+13. **Tapdance automatically takes care of state** - state files are managed automatically for you so that incremental data loads come for free with no additional effort.
 
 ## Installation
 
@@ -67,7 +67,9 @@ git clone https://github.com/aaronsteers/tapdance.git
 
 **Create a `rules` file:**
 
-`samples/taps/data.rules`
+> Note: In a future release, the naming convention of the rules file will be updated from `data.select` to `{tap-name}-rules.txt`.
+
+`samples/taps/covid-19/data.select`
 
 ```ini
 # This is the simplest rules file, imports all tables and all columns from all sources:
