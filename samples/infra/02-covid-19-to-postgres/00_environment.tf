@@ -17,8 +17,9 @@ locals {
 provider "aws" {
   version                 = "~> 2.10"
   region                  = local.aws_region
-  shared_credentials_file = "${local.secrets_folder}/aws-credentials"
   profile                 = "default"
+  shared_credentials_file = local.aws_creds_file
+  # shared_credentials_file = "not-here"
 }
 
 output "env_summary" { value = module.env.summary }

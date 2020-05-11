@@ -12,6 +12,8 @@ module "singer_taps_on_aws" {
 
   # ADD OR MODIFY CONFIGURATION HERE:
 
+  container_image = "dataopstk/tapdance:covid-19-to-s3-csv"
+
   scheduled_sync_times = ["1000", "1400"]
   scheduled_timezone   = "PST"
 

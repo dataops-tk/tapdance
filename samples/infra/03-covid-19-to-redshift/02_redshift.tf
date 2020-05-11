@@ -1,5 +1,10 @@
 # NOTE: Requires AWS policy 'AmazonRDSFullAccess' on the terraform account
 
+locals {
+  redshift_admin_user = "mysqladmin"
+  redshift_admin_pass = "asdfASDF12"
+}
+
 output "summary" { value = module.redshift.summary }
 module "redshift" {
   source        = "git::https://github.com/slalom-ggp/dataops-infra.git//catalog/aws/redshift?ref=master"
@@ -9,16 +14,16 @@ module "redshift" {
 
   # CONFIGURE HERE:
 
-  identifier          = "rds-db"
-  admin_username      = "mysqladmin"
-  admin_password      = "asdfASDF12"
+  identifier          = "redshift-db"
+  jdbc_port           = 5439
+  admin_username      = local.redshift_admin_user
+  admin_password      = local.redshift_admin_pass
   skip_final_snapshot = true # allows simple DB deletion for POC environments
 
   /* OPTIONALLY, COPY-PASTE ADDITIONAL SETTINGS FROM BELOW:
 
   mysql_version       = "5.7.26"
   instance_class      = "db.t2.micro"
-  jdbc_port           = 3306
   storage_size_in_gb  = 20
 
   */

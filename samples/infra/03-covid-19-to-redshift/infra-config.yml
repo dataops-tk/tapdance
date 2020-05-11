@@ -1,0 +1,6 @@
+# This 'infra-config.yml' file will be referenced in terraform deployments.
+project_shortname: TapdanceSample03
+aws_region: us-east-1
+resource_tags:
+  admin_contact: sample-admin@email.com
+  cost_center: 001-sample
