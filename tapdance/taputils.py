@@ -526,7 +526,12 @@ def _sync_one_table(
     jobs.run_command(sync_cmd)
     # TODO: decide whether trimming to only the final line is necessary
     # tail -1 state.json > state.json.tmp && mv state.json.tmp state.json
-    if local_state_file != table_state_file:
+    if not io.file_exists(local_state_file):
+        logging.warning(
+            f"State file does not exist at path '{local_state_file}'. Skipping upload. "
+            f"This can be caused by having no data, or no new data, in the source table."
+        )
+    elif local_state_file != table_state_file:
         io.upload_file(local_state_file, table_state_file)
 
 

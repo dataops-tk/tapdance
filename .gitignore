@@ -12,6 +12,7 @@
 
 .Terraform
 terraform.tfstate*
+.terraform.tfstate*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
