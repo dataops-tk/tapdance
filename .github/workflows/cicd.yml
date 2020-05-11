@@ -40,7 +40,6 @@ jobs:
       #   run: |
       #     pytest
 
-
   pypi_publish:
     runs-on: ubuntu-latest
     strategy:
@@ -102,6 +101,12 @@ jobs:
         # TODO: Ensure latest version or just install via setup.py
       - name: Login to docker
         run: docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_SECRET }}
+      - name: Build and push all *prioritized* pre-release singer images
+        run: |
+          cd docker
+          tapdance build_image covid-19 redshift --pre --push
+          tapdance build_image covid-19 s3_csv --pre --push
+          tapdance build_image covid-19 postgres --pre --push
       - name: Build and push all pre-release singer images
         run: cd docker && tapdance build_all_images --pre --push
       - name: Print list of images

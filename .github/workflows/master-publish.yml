@@ -37,7 +37,6 @@ jobs:
           # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
-
   pypi_publish:
     runs-on: ubuntu-latest
     strategy:
@@ -99,6 +98,12 @@ jobs:
         # TODO: Ensure latest version or just install via setup.py
       - name: Login to docker
         run: docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_SECRET }}
+      - name: Build and push all *prioritized* **PROD** singer images
+        run: |
+          cd docker
+          tapdance build_image covid-19 redshift --push
+          tapdance build_image covid-19 s3_csv --push
+          tapdance build_image covid-19 postgres --push
       - name: Build and push all **PROD** singer images
         run: cd docker && tapdance build_all_images --push
       - name: Print list of images
