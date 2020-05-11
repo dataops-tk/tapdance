@@ -1,11 +1,12 @@
 #!bin/env python3
 
-import re
-import os
 import json
-import yaml
-import sys
+import os
 from pathlib import Path
+import re
+import sys
+
+import yaml
 
 from slalom.dataops import env, io, jobs
 from logless import logged, logged_block, get_logger
@@ -342,15 +343,16 @@ def sync(
         )
 
 
-def build_all_images(push: bool = False, pre: bool = False):
+def build_all_images(push: bool = False, pre: bool = False, ignore_cache: bool = False):
     """
     Build all images.
 
     :param push: Push images after building
     :param pre: Create and publish pre-release builds
+    :param ignore_cache: True to build images without cached image layers. (default: {False})
     """
-    _build_all_standalone(push=push, pre=pre)
-    _build_all_composite(push=push, pre=pre)
+    _build_all_standalone(push=push, pre=pre, ignore_cache=ignore_cache)
+    _build_all_composite(push=push, pre=pre, ignore_cache=ignore_cache)
 
 
 def build_image(
@@ -358,6 +360,7 @@ def build_image(
     target_alias: str = None,
     push: bool = False,
     pre: bool = False,
+    ignore_cache: bool = False,
 ):
     """
     Build a single image. If tap and target are both provided, any required upstream images
@@ -370,14 +373,28 @@ def build_image(
         target_alias {str} -- Optional. The name of the target (without the `target-` prefix).
         push {bool} -- True to push images to image repository after build. (default: {False})
         pre {bool} -- True to use and create prelease versions. (default: {False})
+        ignore_cache {bool} -- True to build images without cached image layers. (default: {False})
     """
     name, source, alias = _get_plugin_info(f"tap-{tap_or_plugin_alias}")
-    _build_plugin_image(name, source=source, alias=alias, push=push, pre=pre)
+    _build_plugin_image(
+        name, source=source, alias=alias, push=push, pre=pre, ignore_cache=ignore_cache
+    )
     if target_alias:
         name, source, alias = _get_plugin_info(f"target-{target_alias}")
-        _build_plugin_image(name, source=source, alias=alias, push=push, pre=pre)
+        _build_plugin_image(
+            name,
+            source=source,
+            alias=alias,
+            push=push,
+            pre=pre,
+            ignore_cache=ignore_cache,
+        )
         _build_composite_image(
-            tap_alias=tap_or_plugin_alias, target_alias=target_alias, push=push, pre=pre
+            tap_alias=tap_or_plugin_alias,
+            target_alias=target_alias,
+            push=push,
+            pre=pre,
+            ignore_cache=ignore_cache,
         )
 
 
@@ -454,6 +471,11 @@ def _sync_one_table(
     table_state_file: str,
 ):
     tap_cmd = f"tap-{tap_name} --config {config_file} --catalog {table_catalog_file}"
+    tap_version_num = "1"  # Not yet supported
+    table_state_file = _replace_placeholders(
+        {"table_state_file": table_state_file}, tap_name, table_name, tap_version_num
+    )["table_state_file"]
+
     if io.file_exists(table_state_file):
         if io.is_local(table_state_file):
             local_state_file = table_state_file
@@ -464,11 +486,15 @@ def _sync_one_table(
             io.download_file(table_state_file, local_state_file)
         tap_cmd = f"{tap_cmd} --state {local_state_file}"
     tmp_target_config = _get_customized_target_config_file(
-        target_name, target_config_file, tap_name=tap_name, table_name=table_name
+        target_name,
+        target_config_file,
+        tap_name=tap_name,
+        table_name=table_name,
+        tap_version_num=tap_version_num,
     )
     sync_cmd = (
         f"{tap_cmd} | target-{target_name} --config {tmp_target_config} "
-        f">> {table_state_file}"
+        f">> {local_state_file}"
     )
     jobs.run_command(sync_cmd)
     # TODO: decide whether trimming to only the final line is necessary
@@ -722,7 +748,9 @@ def _get_plugins_list(plugins_index=None):
     return list_of_tuples
 
 
-def _build_all_standalone(source_image=None, plugins_index=None, push=False, pre=False):
+def _build_all_standalone(
+    source_image=None, plugins_index=None, push=False, pre=False, ignore_cache=False
+):
     plugins = _get_plugins_list(plugins_index)
     created_images = []
     for name, source, alias in plugins:
@@ -734,6 +762,7 @@ def _build_all_standalone(source_image=None, plugins_index=None, push=False, pre
                 source_image=source_image,
                 push=push,
                 pre=pre,
+                ignore_cache=ignore_cache,
             )
         )
     return created_images
@@ -747,7 +776,9 @@ def _get_plugin_info(plugin_id, plugins_index=None):
     raise ValueError(f"Could not file a plugin called '{plugin_id}'")
 
 
-def _build_all_composite(source_image=None, plugins_index=None, push=False, pre=False):
+def _build_all_composite(
+    source_image=None, plugins_index=None, push=False, pre=False, ignore_cache=False
+):
     plugins = _get_plugins_list(plugins_index)
     created_images = []
     for tap_name, tap_source, tap_alias in plugins:
@@ -756,18 +787,32 @@ def _build_all_composite(source_image=None, plugins_index=None, push=False, pre=
             target_alias = target_alias or target_name
             if tap_alias.startswith("tap-") and target_alias.startswith("target-"):
                 created_images.append(
-                    _build_composite_image(tap_alias, target_alias, push=push, pre=pre)
+                    _build_composite_image(
+                        tap_alias,
+                        target_alias,
+                        push=push,
+                        pre=pre,
+                        ignore_cache=ignore_cache,
+                    )
                 )
     return created_images
 
 
 def _build_plugin_image(
-    plugin_name, source, alias, source_image=None, push=False, pre=False
+    plugin_name,
+    source,
+    alias,
+    source_image=None,
+    push=False,
+    pre=False,
+    ignore_cache=False,
 ):
     source = source or plugin_name
     alias = alias or plugin_name
     image_name = f"{BASE_DOCKER_REPO}:{alias}"
     build_cmd = f"docker build"
+    if ignore_cache:
+        build_cmd += " --no-cache"
     if source_image:
         build_cmd += f" --build-arg source_image={source_image}"
     if pre:
@@ -787,13 +832,17 @@ def _build_plugin_image(
     return image_name
 
 
-def _build_composite_image(tap_alias, target_alias, push=False, pre=False):
+def _build_composite_image(
+    tap_alias, target_alias, push=False, pre=False, ignore_cache=False
+):
     if tap_alias.startswith("tap-"):
         tap_alias = tap_alias.replace("tap-", "", 1)
     if target_alias.startswith("target-"):
         target_alias = target_alias.replace("target-", "", 1)
     image_name = f"{BASE_DOCKER_REPO}:{tap_alias}-to-{target_alias}"
     build_cmd = f"docker build"
+    if ignore_cache:
+        build_cmd += " --no-cache"
     if pre:
         build_cmd += " --build-arg source_image_suffix=--pre"
         image_name += "--pre"
