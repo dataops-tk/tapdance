@@ -7,8 +7,8 @@ This folder contains scripts and configuration needed to extract external source
 1. [Table of Contents](#table-of-contents)
 2. [Getting Started Guide](#getting-started-guide)
    1. [Step 1. Create `config.json` files with your secrets and configuration info](#step-1-create-configjson-files-with-your-secrets-and-configuration-info)
-   2. [Step 2. Run `s-tap plan` and confirm the extraction plan](#step-2-run-s-tap-plan-and-confirm-the-extraction-plan)
-   3. [Step 3. Run `s-tap sync` to test data extracts locally](#step-3-run-s-tap-sync-to-test-data-extracts-locally)
+   2. [Step 2. Run `tapdance plan` and confirm the extraction plan](#step-2-run-tapdance-plan-and-confirm-the-extraction-plan)
+   3. [Step 3. Run `tapdance sync` to test data extracts locally](#step-3-run-tapdance-sync-to-test-data-extracts-locally)
 
 ## Getting Started Guide
 
@@ -43,25 +43,25 @@ _Example Pardot config `.secrets/tap-pardot-config.json`:_
 }
 ```
 
-### Step 2. Run `s-tap plan` and confirm the extraction plan
+### Step 2. Run `tapdance plan` and confirm the extraction plan
 
 ```bash
 # Use this script to create or update the metadata catalog for a specified tap.
-# i.e.: s-tap discover TAP_NAME
+# i.e.: tapdance plan TAP_NAME
 
-s-tap plan pardot
-s-tap plan salesforce
+tapdance plan pardot
+tapdance plan salesforce
 ```
 
-### Step 3. Run `s-tap sync` to test data extracts locally
+### Step 3. Run `tapdance sync` to test data extracts locally
 
 ```bash
 # Salesforce extracts:
-s-tap sync salesforce Account
-s-tap sync salesforce Opportunity
-s-tap sync salesforce OpportunityHistory
-s-tap sync salesforce User
+tapdance sync salesforce Account
+tapdance sync salesforce Opportunity
+tapdance sync salesforce OpportunityHistory
+tapdance sync salesforce User
 
 # Pardot extracts:
-s-tap sync pardot *
+tapdance sync pardot *
 ```
