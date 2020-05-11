@@ -484,7 +484,11 @@ def _sync_one_table(
                 io.get_scratch_dir(), os.path.basename(table_state_file)
             )
             io.download_file(table_state_file, local_state_file)
-        tap_cmd = f"{tap_cmd} --state {local_state_file}"
+        tap_cmd += f" --state {local_state_file}"
+    else:
+        local_state_file = os.path.join(
+            io.get_temp_dir(), f"{tap_name}-{table_name}-state.json"
+        )
     tmp_target_config = _get_customized_target_config_file(
         target_name,
         target_config_file,
