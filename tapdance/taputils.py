@@ -8,7 +8,9 @@ import sys
 
 import yaml
 
-from slalom.dataops import env, io, jobs
+# from slalom.dataops import env
+import uio as io
+import runnow as jobs
 from logless import logged, logged_block, get_logger
 
 BASE_DOCKER_REPO = "dataopstk/tapdance"
@@ -24,9 +26,9 @@ S3_TARGET_IDS = ["S3-CSV", "REDSHIFT"]
 logging = get_logger("tapdance")
 
 try:
-    from slalom.dataops import dockerutils
+    import dock_r
 except Exception as ex:
-    dockerutils = None  # type: ignore
+    dock_r = None  # type: ignore
     logging.warning(f"Docker libraries were not able to be loaded ({ex}).")
 
 
@@ -731,9 +733,9 @@ def _rerun_dockerized(tap_alias, target_alias=None):
     }
     image_name = _get_docker_tap_image(tap_alias, target_alias)
     try:
-        dockerutils.pull(image_name)
+        dock_r.pull(image_name)
     except Exception as ex:
-        logging.warning(f"Could not pull latest Spark image '{image_name}'. {ex}")
+        logging.warning(f"Could not pull docker image '{image_name}'. {ex}")
     with logged_block(f"running dockerized command '{cmd}' on image '{image_name}'"):
 
         def _build_docker_run(image, command, environment, working_dir, volumes):
