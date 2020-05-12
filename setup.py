@@ -46,24 +46,11 @@ setup(
         ]
     },
     include_package_data=True,
-    install_requires=[
-        "slalom.dataops",
-        "logless",
-        "uio",
-        "runnow",
-        "docker",
-        "fire",
-        "joblib",
-        "junit-xml",
-        "psutil",
-        "pyyaml",
-        "tqdm",
-        "xmlrunner",
-    ],
+    install_requires=["logless", "uio", "runnow", "docker", "fire"],
     extras_require={
-        "AWS": ["awscli", "boto3", "s3fs"],
-        "Azure": ["azure"],
-        "S3": ["boto3", "s3fs"],
+        # "AWS": ["awscli", "boto3", "s3fs"],
+        # "Azure": ["azure"],
+        # "S3": ["boto3", "s3fs"],
     },
     classifiers=[
         "Development Status :: 4 - Beta",  # "4 - Beta" or "5 - Production/Stable"

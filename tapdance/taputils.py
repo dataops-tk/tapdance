@@ -8,7 +8,8 @@ import sys
 
 import yaml
 
-from slalom.dataops import env, io, jobs
+import uio
+import runnow
 from logless import logged, logged_block, get_logger
 
 BASE_DOCKER_REPO = "dataopstk/tapdance"
@@ -24,9 +25,9 @@ S3_TARGET_IDS = ["S3-CSV", "REDSHIFT"]
 logging = get_logger("tapdance")
 
 try:
-    from slalom.dataops import dockerutils
+    import dock_r
 except Exception as ex:
-    dockerutils = None  # type: ignore
+    dock_r = None  # type: ignore
     logging.warning(f"Docker libraries were not able to be loaded ({ex}).")
 
 
@@ -37,19 +38,19 @@ def _get_root_dir():
 
 def _get_secrets_dir():
     result = os.environ.get("TAP_SECRETS_DIR", f"{_get_root_dir()}/.secrets")
-    io.create_folder(result)
+    uio.create_folder(result)
     return result
 
 
 def _get_scratch_dir():
     result = os.environ.get("TAP_SCRATCH_DIR", f"{_get_root_dir()}/.output")
-    io.create_folder(result)
+    uio.create_folder(result)
     return result
 
 
 def _get_taps_dir(override=None):
     taps_dir = override or os.environ.get("TAP_CONFIG_DIR", ".")
-    return io.make_local(taps_dir)  # if remote path provided, download locally
+    return uio.make_local(taps_dir)  # if remote path provided, download locally
 
 
 def _get_state_file_path():
@@ -63,7 +64,7 @@ def _get_state_file_path():
 
 def _get_catalog_output_dir(tap_name):
     result = f"{_get_scratch_dir()}/taps/{tap_name}-catalog"
-    io.create_folder(result)
+    uio.create_folder(result)
     return result
 
 
@@ -99,8 +100,8 @@ def _get_config_file(plugin_name, config_dir=None):
     default_path = f"{secrets_path}/{plugin_name}-config.json"
     tmp_path = f"{secrets_path}/tmp/{plugin_name}-config.json"
     use_tmp_file = False
-    if io.file_exists(default_path):
-        json_text = io.get_text_file_contents(default_path)
+    if uio.file_exists(default_path):
+        json_text = uio.get_text_file_contents(default_path)
         conf_dict = json.loads(json_text)
     else:
         conf_dict = {}
@@ -112,8 +113,8 @@ def _get_config_file(plugin_name, config_dir=None):
             conf_dict[setting_name] = v
             use_tmp_file = True
     if use_tmp_file:
-        io.create_folder(str(Path(tmp_path).parent))
-        io.create_text_file(tmp_path, json.dumps(conf_dict))
+        uio.create_folder(str(Path(tmp_path).parent))
+        uio.create_text_file(tmp_path, json.dumps(conf_dict))
         return tmp_path
     return default_path
 
@@ -142,17 +143,17 @@ def install(plugin_name: str, source: str = None, alias: str = None):
 
     venv_dir = os.path.join(VENV_ROOT, alias)
     install_path = os.path.join(INSTALL_ROOT, alias)
-    if io.file_exists(install_path):
+    if uio.file_exists(install_path):
         response = input(
             f"The file '{install_path}' already exists. "
             f"Are you sure you want to replace this file? [y/n]"
         )
         if not response.lower() in ["y", "yes"]:
             raise RuntimeError(f"File already exists '{install_path}'.")
-        io.delete_file(install_path)
-    jobs.run_command(f"python3 -m venv {venv_dir}")
-    jobs.run_command(f"{os.path.join(venv_dir ,'bin', 'pip3')} install {source}")
-    jobs.run_command(f"ln -s {venv_dir}/bin/{plugin_name} {install_path}")
+        uio.delete_file(install_path)
+    runnow.run(f"python3 -m venv {venv_dir}")
+    runnow.run(f"{os.path.join(venv_dir ,'bin', 'pip3')} install {source}")
+    runnow.run(f"ln -s {venv_dir}/bin/{plugin_name} {install_path}")
 
 
 @logged("Updating plan file for 'tap-{tap_name}'")
@@ -188,7 +189,7 @@ def plan(
         config for the specified plugin. (Default=f"${config_dir}/${plugin_name}-config.json")
     """
 
-    if env.is_windows() or env.is_mac():
+    if uio.is_windows() or uio.is_mac():
         _rerun_dockerized(tap_name)
         return
     taps_dir = _get_taps_dir(taps_dir)
@@ -200,17 +201,17 @@ def plan(
     selected_catalog_file = f"{catalog_dir}/{tap_name}-catalog-selected.json"
     plan_file = _get_plan_file(tap_name, taps_dir)
     if (
-        io.file_exists(catalog_file)
-        and io.get_text_file_contents(catalog_file).strip() == ""
+        uio.file_exists(catalog_file)
+        and uio.get_text_file_contents(catalog_file).strip() == ""
     ):
         logging.info(f"Cleaning up empty catalog file: {catalog_file}")
-        io.delete_file(catalog_file)
-    if rescan or not io.file_exists(catalog_file):
+        uio.delete_file(catalog_file)
+    if rescan or not uio.file_exists(catalog_file):
         _discover(tap_name, config_file, catalog_dir)
     rules_file = _get_rules_file(taps_dir)
     select_rules = [
         line.split("#")[0].rstrip()
-        for line in io.get_text_file_contents(rules_file).splitlines()
+        for line in uio.get_text_file_contents(rules_file).splitlines()
         if line.split("#")[0].rstrip()
     ]
     matches = {}
@@ -245,7 +246,7 @@ def plan(
         file_text += f"ignored_tables:\n"
         for table in sorted(excluded_tables):
             file_text += f"{'  ' * 1}- {table}\n"
-    io.create_text_file(plan_file, file_text)
+    uio.create_text_file(plan_file, file_text)
     _create_selected_catalog(
         tap_name,
         plan_file=plan_file,
@@ -301,7 +302,7 @@ def sync(
         file path will be generated automatically within `catalog_dir`.
     """
     if dockerized is None:
-        if env.is_windows() or env.is_mac():
+        if uio.is_windows() or uio.is_mac():
             logging.info(
                 "The 'dockerized' argument is not set when running either Windows or OSX."
                 "Attempting to run sync from inside docker."
@@ -316,7 +317,7 @@ def sync(
     )
     catalog_dir = catalog_dir or _get_catalog_output_dir(tap_name)
     full_catalog_file = f"{catalog_dir}/{tap_name}-catalog-selected.json"
-    if rescan or rules_file or not io.file_exists(full_catalog_file):
+    if rescan or rules_file or not uio.file_exists(full_catalog_file):
         # Create or update `*-catalog-selected.json` and `plan-*.yml` files
         # using the `data.select` rules file
         plan(
@@ -411,22 +412,20 @@ def build_image(
 
 @logged("running discovery on '{tap_name}'")
 def _discover(tap_name: str, config_file: str = None, catalog_dir: str = None):
-    if env.is_windows() or env.is_mac():
+    if uio.is_windows() or uio.is_mac():
         _rerun_dockerized(tap_name)
         return
     config_file = config_file or _get_config_file(f"tap-{tap_name}")
     catalog_dir = catalog_dir or _get_catalog_output_dir(tap_name)
     catalog_file = f"{catalog_dir}/{tap_name}-catalog-raw.json"
-    io.create_folder(catalog_dir)
-    jobs.run_command(
-        f"tap-{tap_name} --config {config_file} --discover > {catalog_file}"
-    )
+    uio.create_folder(catalog_dir)
+    runnow.run(f"tap-{tap_name} --config {config_file} --discover > {catalog_file}")
 
 
 def _get_customized_target_config_file(
     target_name, target_config_file, *, tap_name, table_name, tap_version_num="1",
 ):
-    config_defaults = json.loads(io.get_text_file_contents(target_config_file))
+    config_defaults = json.loads(uio.get_text_file_contents(target_config_file))
     new_config = config_defaults.copy()
     if target_name.upper() in S3_TARGET_IDS:
         if (
@@ -440,7 +439,7 @@ def _get_customized_target_config_file(
                 aws_access_key_id,
                 aws_secret_access_key,
                 aws_session_token,
-            ) = io.parse_aws_creds()
+            ) = uio.parse_aws_creds()
             if aws_access_key_id and aws_secret_access_key:
                 logging.info(
                     f"Passing 'aws_access_key_id' and 'aws_secret_access_key' "
@@ -460,7 +459,7 @@ def _get_customized_target_config_file(
         new_config, tap_name, table_name, tap_version_num
     )
     new_file_path = target_config_file.replace(".json", f"-{table_name}.json")
-    io.create_text_file(new_file_path, json.dumps(new_config))
+    uio.create_text_file(new_file_path, json.dumps(new_config))
     return new_file_path
 
 
@@ -499,18 +498,18 @@ def _sync_one_table(
         {"table_state_file": table_state_file}, tap_name, table_name, tap_version_num
     )["table_state_file"]
 
-    if io.file_exists(table_state_file):
-        if io.is_local(table_state_file):
+    if uio.file_exists(table_state_file):
+        if uio.is_local(table_state_file):
             local_state_file = table_state_file
         else:
             local_state_file = os.path.join(
-                io.get_scratch_dir(), os.path.basename(table_state_file)
+                uio.get_scratch_dir(), os.path.basename(table_state_file)
             )
-            io.download_file(table_state_file, local_state_file)
+            uio.download_file(table_state_file, local_state_file)
         tap_cmd += f" --state {local_state_file}"
     else:
         local_state_file = os.path.join(
-            io.get_temp_dir(), f"{tap_name}-{table_name}-state.json"
+            uio.get_temp_dir(), f"{tap_name}-{table_name}-state.json"
         )
     tmp_target_config = _get_customized_target_config_file(
         target_name,
@@ -523,16 +522,16 @@ def _sync_one_table(
         f"{tap_cmd} | target-{target_name} --config {tmp_target_config} "
         f">> {local_state_file}"
     )
-    jobs.run_command(sync_cmd)
+    runnow.run(sync_cmd)
     # TODO: decide whether trimming to only the final line is necessary
     # tail -1 state.json > state.json.tmp && mv state.json.tmp state.json
-    if not io.file_exists(local_state_file):
+    if not uio.file_exists(local_state_file):
         logging.warning(
             f"State file does not exist at path '{local_state_file}'. Skipping upload. "
             f"This can be caused by having no data, or no new data, in the source table."
         )
     elif local_state_file != table_state_file:
-        io.upload_file(local_state_file, table_state_file)
+        uio.upload_file(local_state_file, table_state_file)
 
 
 def _table_match_check(match_text: str, select_rules: list):
@@ -648,7 +647,7 @@ def _create_selected_catalog(
     output_file = output_file or os.path.join(catalog_dir, f"selected-catalog.json")
     catalog_full = json.loads(Path(source_catalog_path).read_text())
     plan_file = plan_file or _get_plan_file(tap_name)
-    plan = yaml.safe_load(io.get_text_file_contents(plan_file))
+    plan = yaml.safe_load(uio.get_text_file_contents(plan_file))
     included_table_objects = []
     for tbl in catalog_full["streams"]:
         stream_name = tbl["stream"]
@@ -731,9 +730,9 @@ def _rerun_dockerized(tap_alias, target_alias=None):
     }
     image_name = _get_docker_tap_image(tap_alias, target_alias)
     try:
-        dockerutils.pull(image_name)
+        dock_r.pull(image_name)
     except Exception as ex:
-        logging.warning(f"Could not pull latest Spark image '{image_name}'. {ex}")
+        logging.warning(f"Could not pull docker image '{image_name}'. {ex}")
     with logged_block(f"running dockerized command '{cmd}' on image '{image_name}'"):
 
         def _build_docker_run(image, command, environment, working_dir, volumes):
@@ -756,18 +755,18 @@ def _rerun_dockerized(tap_alias, target_alias=None):
             working_dir="/projects/my-project",
             volumes=volumes,
         )
-        jobs.run_command(docker_run_cmd)
+        runnow.run(docker_run_cmd)
     return True
 
 
 def _get_plugins_list(plugins_index=None):
     plugins_index = plugins_index or SINGER_PLUGINS_INDEX
-    if not io.file_exists(plugins_index):
+    if not uio.file_exists(plugins_index):
         raise RuntimeError(
             f"No file found at '{plugins_index}'."
             "Please set SINGER_PLUGINS_INDEX and try again."
         )
-    yml_doc = yaml.safe_load(io.get_text_file_contents(plugins_index))
+    yml_doc = yaml.safe_load(uio.get_text_file_contents(plugins_index))
     taps = yml_doc["singer-taps"]
     list_of_tuples = []
     taps = yml_doc["singer-taps"]
@@ -858,7 +857,7 @@ def _build_plugin_image(
         f" -f singer-plugin.Dockerfile"
         f" ."
     )
-    jobs.run_command(build_cmd)
+    runnow.run(build_cmd)
     if push:
         _push(image_name)
     return image_name
@@ -885,11 +884,11 @@ def _build_composite_image(
         f" -f tap-to-target.Dockerfile"
         f" ."
     )
-    jobs.run_command(build_cmd)
+    runnow.run(build_cmd)
     if push:
         _push(image_name)
     return image_name
 
 
 def _push(image_name):
-    jobs.run_command(f"docker push {image_name}")
+    runnow.run(f"docker push {image_name}")
