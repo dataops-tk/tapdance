@@ -81,6 +81,10 @@ jobs:
       - name: Test install (pip install tapdance)
         run: |
           pip install tapdance
+      - name: Test CLI shortcuts
+        run: |
+          set -v
+          tapdance -- --help
       - name: Test uninstall (pip uninstall tapdance)
         run: |
           pip uninstall -y tapdance

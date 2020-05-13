@@ -1,5 +1,6 @@
-logless
-runnow
-uio
 docker
 fire
+logless
+pyyaml
+runnow
+uio

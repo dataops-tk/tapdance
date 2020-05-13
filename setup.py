@@ -46,11 +46,10 @@ setup(
         ]
     },
     include_package_data=True,
-    install_requires=["logless", "uio", "runnow", "docker", "fire"],
+    install_requires=["docker", "fire", "logless", "pyyaml", "runnow", "uio"],
     extras_require={
-        # "AWS": ["awscli", "boto3", "s3fs"],
-        # "Azure": ["azure"],
-        # "S3": ["boto3", "s3fs"],
+        "AWS": ["boto3", "s3fs"],
+        "Azure": ["azure-storage-blob", "azure-storage-file-datalake"],
     },
     classifiers=[
         "Development Status :: 4 - Beta",  # "4 - Beta" or "5 - Production/Stable"
