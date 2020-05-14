@@ -73,7 +73,7 @@ jobs:
           twine upload -u $PYPI_USER -p $PYPI_PASS dist/*
       - name: Sleep before install
         run: |
-          sleep 30
+          sleep 60
       - name: Test install (pip install tapdance)
         run: |
           pip install --no-cache-dir tapdance==$(cat VERSION)
