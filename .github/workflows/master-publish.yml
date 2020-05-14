@@ -21,9 +21,9 @@ jobs:
         uses: actions/checkout@v1
       - name: echo Build Numbers and Version
         run: |
-          echo "Run ID:     ${{ env.GITHUB_RUN_ID }}"
-          echo "Run Number: ${{ env.GITHUB_RUN_NUMBER }}"
-          echo "Version:    $(cat VERSION).${{ env.GITHUB_RUN_ID }}"
+          echo "Run ID:     ${{ github.run_id }}"
+          echo "Run Number: ${{ github.run_number }}"
+          echo "Version:    $(cat VERSION).${{ github.run_id }}"
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v1
         with:
