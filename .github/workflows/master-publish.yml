@@ -22,7 +22,7 @@ jobs:
       - name: echo Build Numbers and Version
         run: |
           echo "Run ID:       ${{ github.run_id }}"
-          echo "Build Number: ${{ github.run_number }}" (aka $GITHUB_RUN_NUMBER)
+          echo "Build Number: ${{ github.run_number }} (aka $GITHUB_RUN_NUMBER)"
           echo "Version:      $(cat VERSION).${{ github.run_number }}"
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v1
