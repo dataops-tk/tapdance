@@ -19,7 +19,7 @@ jobs:
     steps:
       - name: Clone git repo
         uses: actions/checkout@v1
-      - name: "Print Version Info (build #${{ github.run_number }})"
+      - name: "Print Version Info (build number ${{ github.run_number }})"
         run: |
           echo "Build Number: $GITHUB_RUN_NUMBER
           echo "Version:      $(cat VERSION).$GITHUB_RUN_NUMBER"
