@@ -19,6 +19,11 @@ jobs:
     steps:
       - name: Clone git repo
         uses: actions/checkout@v1
+      - name: echo Build Numbers and Version
+        run: |
+          echo "Run ID:     ${{ GITHUB_RUN_ID }}"
+          echo "Run Number: ${{ GITHUB_RUN_Number }}"
+          echo "Version:    $(cat VERSION).${{ GITHUB_RUN_ID }}"
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v1
         with:
