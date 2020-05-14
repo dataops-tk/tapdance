@@ -21,9 +21,9 @@ jobs:
         uses: actions/checkout@v1
       - name: echo Build Numbers and Version
         run: |
-          echo "Run ID:     ${{ github.run_id }}"
-          echo "Run Number: ${{ github.run_number }}"
-          echo "Version:    $(cat VERSION).${{ github.run_id }}"
+          echo "Run ID:       ${{ github.run_id }}"
+          echo "Build Number: ${{ github.run_number }}"
+          echo "Version:      $(cat VERSION).${{ github.run_number }}"
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v1
         with:
@@ -58,18 +58,13 @@ jobs:
         uses: actions/setup-python@v1
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Generate build number (BUILD_NUMBER)
-        id: buildnumber
-        uses: einaregilsson/build-number@v2
-        with:
-          token: ${{secrets.github_token}}
       - name: Push to PyPi (https://pypi.org/project/tapdance/)
         env:
           # VERSION: ${{ github.ref }}
           BRANCH_NAME: ${{ github.ref }}
           PYPI_USER: ${{ secrets.PYPI_USER }}
           PYPI_PASS: ${{ secrets.PYPI_SECRET }}
-          BUILD_NUMBER: ${{ steps.buildnumber.outputs.build_number }}
+          BUILD_NUMBER: ${{ github.run_number }}
         run: |
           echo -e "Installing twine...\n\n"
           pip install twine
