@@ -60,4 +60,4 @@ setup(
     ],
 )
 # Revert `.dev0` suffix
-Path(VERSION_FILEPATH).write_text(f"v{DETECTED_VERSION.replace('.dev0', '')}")
+# Path(VERSION_FILEPATH).write_text(f"v{DETECTED_VERSION.replace('.dev0', '')}")
