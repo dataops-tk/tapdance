@@ -43,7 +43,7 @@ setup(
     author_email="aj.steers@slalom.com",
     url="https://www.github.com/aaronsteers/tapdance",
     download_url="https://www.github.com/aaronsteers/tapdance/archive",
-    keywords=["DATAOPS", "LOGGING"],
+    keywords=["DATAOPS", "SINGER", "EXTRACTS"],
     package_data={"": [VERSION_FILEPATH]},
     entry_points={
         "console_scripts": [
