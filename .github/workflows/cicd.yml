@@ -73,12 +73,12 @@ jobs:
           python setup.py sdist
           echo -e "\nPublishing to version ref '$VERSION'...\n\n"
           twine upload -u $PYPI_USER -p $PYPI_PASS dist/*
-      - name: Sleep before install
-        run: |
-          sleep 60
+      # - name: Sleep before install
+      #   run: |
+      #     sleep 60
       - name: Test install (pip install tapdance)
         run: |
-          pip install tapdance==$(cat VERSION) --pre
+          pip install --no-cache-dir tapdance==$(cat VERSION) --pre
       - name: Test CLI shortcuts
         run: |
           set -v
