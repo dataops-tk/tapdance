@@ -19,11 +19,11 @@ jobs:
     steps:
       - name: Clone git repo
         uses: actions/checkout@v1
-      - name: echo Build Numbers and Version
+      - name: "Print Version Info (build #${{ github.run_number }})"
         run: |
+          echo "Build Number: $GITHUB_RUN_NUMBER
+          echo "Version:      $(cat VERSION).$GITHUB_RUN_NUMBER"
           echo "Run ID:       ${{ github.run_id }}"
-          echo "Build Number: ${{ github.run_number }} (aka $GITHUB_RUN_NUMBER)"
-          echo "Version:      $(cat VERSION).${{ github.run_number }}"
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v1
         with:
@@ -64,7 +64,6 @@ jobs:
           BRANCH_NAME: ${{ github.ref }}
           PYPI_USER: ${{ secrets.PYPI_USER }}
           PYPI_PASS: ${{ secrets.PYPI_SECRET }}
-          BUILD_NUMBER: ${{ github.run_number }}
         run: |
           echo -e "Installing twine...\n\n"
           pip install twine

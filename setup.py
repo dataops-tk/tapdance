@@ -8,6 +8,11 @@ from setuptools import setup
 DETECTED_VERSION = None
 VERSION_FILEPATH = "VERSION"
 
+
+def _get_build_number():
+    return os.environ.get("BUILD_NUMBER", os.environ.get("GITHUB_RUN_NUMBER", None))
+
+
 if "VERSION" in os.environ:
     DETECTED_VERSION = os.environ["VERSION"]
     if "/" in DETECTED_VERSION:
@@ -15,8 +20,9 @@ if "VERSION" in os.environ:
 if not DETECTED_VERSION and os.path.exists(VERSION_FILEPATH):
     DETECTED_VERSION = Path(VERSION_FILEPATH).read_text()
     if len(DETECTED_VERSION.split(".")) <= 3:
-        if "BUILD_NUMBER" in os.environ:
-            DETECTED_VERSION = f"{DETECTED_VERSION}.{os.environ['BUILD_NUMBER']}"
+        build_num = _get_build_number()
+        if build_num:
+            DETECTED_VERSION = f"{DETECTED_VERSION}.{build_num}"
 if not DETECTED_VERSION:
     raise RuntimeError("Error. Could not detect version.")
 DETECTED_VERSION = DETECTED_VERSION.replace(".dev0", "")
