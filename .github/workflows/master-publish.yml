@@ -71,15 +71,15 @@ jobs:
           python setup.py sdist
           echo -e "\nPublishing to version ref '$VERSION'...\n\n"
           twine upload -u $PYPI_USER -p $PYPI_PASS dist/*
-      - name: Sleep before install
-        run: |
-          sleep 60
-      - name: Test install (pip install tapdance)
-        run: |
-          pip install --no-cache-dir tapdance==$(cat VERSION)
-      - name: Test uninstall (pip uninstall tapdance)
-        run: |
-          pip uninstall -y tapdance
+      # - name: Sleep before install
+      #   run: |
+      #     sleep 60
+      # - name: Test install (pip install tapdance)
+      #   run: |
+      #     pip install --no-cache-dir tapdance==$(cat VERSION)
+      # - name: Test uninstall (pip uninstall tapdance)
+      #   run: |
+      #     pip uninstall -y tapdance
 
   docker_builds:
     runs-on: ubuntu-latest
