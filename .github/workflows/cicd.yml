@@ -79,7 +79,7 @@ jobs:
           sleep 60
       - name: Test install (pip install tapdance)
         run: |
-          pip install tapdance==$(cat VERSION).${{ github.run_number }}
+          pip install tapdance==$(cat VERSION) --pre
       - name: Test CLI shortcuts
         run: |
           set -v
