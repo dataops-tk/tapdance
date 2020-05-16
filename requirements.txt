@@ -1,4 +1,5 @@
 docker
+dock-r
 fire
 logless
 pyyaml

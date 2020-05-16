@@ -52,7 +52,7 @@ setup(
         ]
     },
     include_package_data=True,
-    install_requires=["docker", "fire", "logless", "pyyaml", "runnow", "uio"],
+    install_requires=["docker", "dock-r", "fire", "logless", "pyyaml", "runnow", "uio"],
     extras_require={
         "AWS": ["boto3", "s3fs"],
         "Azure": ["azure-storage-blob", "azure-storage-file-datalake"],
