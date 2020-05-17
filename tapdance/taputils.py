@@ -328,7 +328,7 @@ def sync(
             rescan=rescan,
         )
     if table_name is None or table_name == "*":
-        list_of_tables = _get_catalog_tables_dict(full_catalog_file).keys()
+        list_of_tables = sorted(_get_catalog_tables_dict(full_catalog_file).keys())
     else:
         list_of_tables = [table_name]
 
