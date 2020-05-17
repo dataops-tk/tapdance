@@ -14,7 +14,7 @@ singer-taps:
   - { name: tap-pardot }
   - { name: tap-postgres, source: pipelinewise-tap-postgres }
   - { name: tap-s3-csv, source: pipelinewise-tap-s3-csv }
-  - { name: tap-salesforce, source: "git+https://gitlab.com/meltano/tap-salesforce.git@master" }
+  - { name: tap-salesforce, source: "git+https://gitlab.com/aaronsteers/tap-salesforce.git@patch-1" } # See below
   - { name: tap-salesforce, alias: tap-salesforce-singer }
   - { name: tap-salesforce, alias: tap-salesforce-pw, source: pipelinewise-tap-salesforce }
   - { name: tap-snowflake, source: pipelinewise-tap-snowflake }
@@ -28,5 +28,7 @@ singer-targets:
   - { name: target-snowflake }
 
 failing-taps:
+  # Failing due to requests library conflict (https://gitlab.com/meltano/tap-salesforce/-/issues/9):
+  - { name: tap-salesforce, source: "git+https://gitlab.com/meltano/tap-salesforce.git@master" }
 
 failing-targets:
