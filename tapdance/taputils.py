@@ -22,6 +22,13 @@ _ROOT_DIR = "/projects/my-project"
 # These plugins will attempt to scrape and pass along AWs Credentials from the local environment.
 S3_TARGET_IDS = ["S3-CSV", "REDSHIFT"]
 
+ENV_TAP_SECRETS_DIR = "TAP_SECRETS_DIR"
+ENV_TAP_SCRATCH_DIR = "TAP_SCRATCH_DIR"
+ENV_TAP_CONFIG_DIR = "TAP_CONFIG_DIR"
+ENV_TAP_STATE_FILE = "TAP_STATE_FILE"
+ENV_PIPELINE_VERSION_NUMBER = "PIPELINE_VERSION_NUMBER"
+
+
 logging = get_logger("tapdance")
 
 try:
@@ -37,29 +44,34 @@ def _get_root_dir():
 
 
 def _get_secrets_dir():
-    result = os.environ.get("TAP_SECRETS_DIR", f"{_get_root_dir()}/.secrets")
+    result = os.environ.get(ENV_TAP_SECRETS_DIR, f"{_get_root_dir()}/.secrets")
     uio.create_folder(result)
     return result
 
 
 def _get_scratch_dir():
-    result = os.environ.get("TAP_SCRATCH_DIR", f"{_get_root_dir()}/.output")
+    result = os.environ.get(ENV_TAP_SCRATCH_DIR, f"{_get_root_dir()}/.output")
     uio.create_folder(result)
     return result
 
 
 def _get_taps_dir(override=None):
-    taps_dir = override or os.environ.get("TAP_CONFIG_DIR", ".")
+    taps_dir = override or os.environ.get(ENV_TAP_CONFIG_DIR, ".")
     return uio.make_local(taps_dir)  # if remote path provided, download locally
 
 
 def _get_state_file_path():
-    result = os.environ.get("TAP_STATE_FILE", None)
+    result = os.environ.get(ENV_TAP_STATE_FILE, None)
     if not result:
         logging.warning(
-            "Could not locate env var 'TAP_STATE_FILE'. State may not be maintained."
+            f"Could not locate env var '{ENV_TAP_STATE_FILE}'. "
+            f"State may not be maintained."
         )
     return result
+
+
+def _get_pipeline_version_number():
+    return os.environ.get(ENV_PIPELINE_VERSION_NUMBER, "1")
 
 
 def _get_catalog_output_dir(tap_name):
@@ -423,7 +435,7 @@ def _discover(tap_name: str, config_file: str = None, catalog_dir: str = None):
 
 
 def _get_customized_target_config_file(
-    target_name, target_config_file, *, tap_name, table_name, tap_version_num="1",
+    target_name, target_config_file, *, tap_name, table_name, pipeline_version_num,
 ):
     config_defaults = json.loads(uio.get_text_file_contents(target_config_file))
     new_config = config_defaults.copy()
@@ -456,20 +468,20 @@ def _get_customized_target_config_file(
                 logging.info(f"Passing 'aws_session_token' to 'target-{target_name}'")
                 new_config["aws_session_token"] = aws_session_token
     new_config = _replace_placeholders(
-        new_config, tap_name, table_name, tap_version_num
+        new_config, tap_name, table_name, pipeline_version_num
     )
     new_file_path = target_config_file.replace(".json", f"-{table_name}.json")
     uio.create_text_file(new_file_path, json.dumps(new_config))
     return new_file_path
 
 
-def _replace_placeholders(config_dict, tap_name, table_name, tap_version_num):
+def _replace_placeholders(config_dict, tap_name, table_name, pipeline_version_num):
     new_config = config_dict.copy()
     for setting_name in new_config.keys():
         for param, replacement_value in {
             "tap": tap_name,
             "table": table_name,
-            "version": tap_version_num,
+            "version": pipeline_version_num,
         }.items():
             search_key = "{" + f"{param}" + "}"
             if search_key in new_config[setting_name]:
@@ -493,9 +505,12 @@ def _sync_one_table(
     table_state_file: str,
 ):
     tap_cmd = f"tap-{tap_name} --config {config_file} --catalog {table_catalog_file}"
-    tap_version_num = "1"  # Not yet supported
+    pipeline_version_num = _get_pipeline_version_number()
     table_state_file = _replace_placeholders(
-        {"table_state_file": table_state_file}, tap_name, table_name, tap_version_num
+        {"table_state_file": table_state_file},
+        tap_name,
+        table_name,
+        pipeline_version_num,
     )["table_state_file"]
 
     if uio.file_exists(table_state_file):
@@ -516,7 +531,7 @@ def _sync_one_table(
         target_config_file,
         tap_name=tap_name,
         table_name=table_name,
-        tap_version_num=tap_version_num,
+        pipeline_version_num=pipeline_version_num,
     )
     sync_cmd = (
         f"{tap_cmd} | target-{target_name} --config {tmp_target_config} "
