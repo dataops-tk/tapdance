@@ -106,6 +106,7 @@ jobs:
         run: |
           cd docker
           tapdance build_image salesforce s3-csv --pre --push
+          tapdance build_image salesforce snowflake --pre --push
           tapdance build_image covid-19 s3-csv --pre --push
           tapdance build_image covid-19 redshift --pre --push
           tapdance build_image covid-19 postgres --pre --push
