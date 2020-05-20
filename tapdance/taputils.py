@@ -354,8 +354,10 @@ def sync(
     else:
         list_of_tables = [table_name]
     if exclude_tables:
+        logging.info(f"Table(s) to exclude from sync: {', '.join(exclude_tables)}")
         list_of_tables = [t for t in list_of_tables if t not in exclude_tables]
 
+    logging.info(f"Table(s) to sync: {', '.join(list_of_tables)}")
     for table in list_of_tables:
         # Call each tap independently so that table state files are kept separate:
         tmp_catalog_file = f"{catalog_dir}/{tap_name}-{table}-catalog.json"
