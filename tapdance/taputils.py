@@ -603,21 +603,12 @@ def _check_column_rule(match_text: str, rule_text: str):
         rule_text = rule_text[1:]
     else:
         match_result = True  # Include if matched
-    rule_text = rule_text.replace("**.", "*.*.")
-    tap_match, table_match, column_match = (
-        rule_text.split(".")[0],
-        rule_text.split(".")[1],
-        ".".join(rule_text.split(".")[2:]),
-    )
-    if not _is_match(match_text.split(".")[0], tap_match):
+    table_match = rule_text.split(".")[0]
+    column_match = ".".join(rule_text.split(".")[1:])
+    if not _is_match(match_text.split(".")[0], table_match):
         return None
-    if not _is_match(match_text.split(".")[1], table_match):
+    if not _is_match(match_text.split(".")[1], column_match):
         return None
-    if not _is_match(match_text.split(".")[2], column_match):
-        return None
-    # logging.info(
-    #     f"Column '{match_text}' matched column filter '{column_match}' in '{rule_text}'"
-    # )
     return match_result
 
 
