@@ -654,6 +654,8 @@ def _create_selected_catalog(
     catalog_full = json.loads(Path(source_catalog_path).read_text())
     plan_file = plan_file or _get_plan_file(tap_name)
     plan = yaml.safe_load(uio.get_text_file_contents(plan_file))
+    if ("selected_tables" not in plan) or len(plan["selected_tables"]) == 0:
+        raise ValueError(f"No selected tables found in plan file '{plan_file}'.")
     included_table_objects = []
     for tbl in catalog_full["streams"]:
         stream_name = tbl["stream"]
