@@ -81,11 +81,11 @@ def _get_catalog_output_dir(tap_name):
 
 
 def _get_plan_file(tap_name, taps_dir=None):
-    return os.path.join(_get_taps_dir(taps_dir), f"data-plan-{tap_name}.yml")
+    return os.path.join(_get_taps_dir(taps_dir), f"{tap_name}.plan.yml")
 
 
-def _get_rules_file(taps_dir=None):
-    return os.path.join(_get_taps_dir(taps_dir), f"data.select")
+def _get_rules_file(taps_dir, tap_name):
+    return os.path.join(_get_taps_dir(taps_dir), f"{tap_name}.rules.txt")
 
 
 def _get_catalog_tables_dict(catalog_file):
@@ -193,7 +193,7 @@ def plan(
         rescan {bool} -- Optional. True to force a rescan and replace existing metadata.
         (default: False)
         taps_dir {str} -- Optional. The directory containing the rules file. (Default=cwd)
-        (`data.select`).
+        (`{tap-name}.rules.txt`).
         config_dir {str} -- Optional. The default location of config, catalog and other
         potentially sensitive information. (Recommended to be excluded from source control.)
         (Default="${taps_dir}/.secrets")
@@ -220,7 +220,7 @@ def plan(
         uio.delete_file(catalog_file)
     if rescan or not uio.file_exists(catalog_file):
         _discover(tap_name, config_file, catalog_dir)
-    rules_file = _get_rules_file(taps_dir)
+    rules_file = _get_rules_file(taps_dir, tap_name)
     select_rules = [
         line.split("#")[0].rstrip()
         for line in uio.get_text_file_contents(rules_file).splitlines()
@@ -298,7 +298,7 @@ def sync(
         dockerized {bool} -- Optional. True or False to force whether the command is run
         dockerized. If omitted, the best option will be selected automatically.
         taps_dir {str} -- Optional. The directory containing the rules file. (Default=cwd)
-        (`data.select`).
+        (`{tap-name}.rules.txt`).
         config_dir {str} -- Optional. The default location of config, catalog and other
         potentially sensitive information. (Recommended to be excluded from source control.)
         (Default="${taps_dir}/.secrets")
@@ -322,7 +322,7 @@ def sync(
             _rerun_dockerized(tap_name, target_name)
             return
     taps_dir = _get_taps_dir(taps_dir)
-    rules_file = _get_rules_file(taps_dir)
+    rules_file = _get_rules_file(taps_dir, tap_name)
     config_file = config_file or _get_config_file(f"tap-{tap_name}", config_dir)
     target_config_file = target_config_file or _get_config_file(
         f"target-{target_name}", config_dir
@@ -331,7 +331,7 @@ def sync(
     full_catalog_file = f"{catalog_dir}/{tap_name}-catalog-selected.json"
     if rescan or rules_file or not uio.file_exists(full_catalog_file):
         # Create or update `*-catalog-selected.json` and `plan-*.yml` files
-        # using the `data.select` rules file
+        # using the `{tap-name}.rules.txt` rules file
         plan(
             tap_name,
             taps_dir=taps_dir,

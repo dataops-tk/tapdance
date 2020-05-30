@@ -1,0 +1,23 @@
+# Salesforce Table-Level Rules
+
+Account
+Opportunity
+RecordType.*
+OpportunityTag.*
+
+# Salesforce Column-Level Whitelist:
+
+*.Id
+*.ParentId
+*.IsDeleted
+*.CreatedDate
+*.LastModifiedDate
+*.SystemModstamp
+*.CloseDate
+*.StageName
+
+# Advanced Column Exclusions:
+
+!**./(first|last).*name/
+!**./credit.*card.*/
+!**.*__c
