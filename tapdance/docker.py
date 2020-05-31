@@ -7,7 +7,7 @@ import runnow
 import uio
 import yaml
 
-from tapdance.paths import SINGER_PLUGINS_INDEX
+from tapdance.config import SINGER_PLUGINS_INDEX
 
 logging = get_logger("tapdance")
 
