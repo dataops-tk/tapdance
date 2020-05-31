@@ -1,6 +1,11 @@
+"""tapdance.cli - Defines the command-line interface (CLI) for tapdance."""
+
 import fire
 
-from .taputils import install, plan, sync, build_all_images, build_image
+from tapdance.docker import build_all_images, build_image
+from tapdance.install_helper import install
+from tapdance.plan import plan
+from tapdance.sync import sync
 
 
 def main():
