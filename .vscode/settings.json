@@ -2,5 +2,11 @@
     "workbench.colorTheme": "Community Material Theme Palenight",
     "python.formatting.provider": "black",
     "editor.formatOnSave": true,
-    "autoDocstring.docstringFormat": "numpy"
+    "autoDocstring.docstringFormat": "numpy",
+    "python.testing.unittestEnabled": false,
+    "python.testing.nosetestsEnabled": false,
+    "python.testing.pytestEnabled": true,
+    "python.testing.pytestArgs": [
+        "tests"
+    ]
 }

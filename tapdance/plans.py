@@ -54,7 +54,7 @@ def _check_rules(
     return matches, excluded_table_list
 
 
-@logged("Updating plan file for 'tap-{tap_name}'")
+@logged("updating plan file for 'tap-{tap_name}'")
 def plan(
     tap_name: str,
     *,
