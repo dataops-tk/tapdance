@@ -1,5 +1,8 @@
+"""tapdance.docker - Module for containerization and image build functions."""
+
 import os
 import sys
+from typing import List
 
 # import dock_r
 from logless import get_logger, logged_block
@@ -21,14 +24,37 @@ except Exception as ex:
 BASE_DOCKER_REPO = "dataopstk/tapdance"
 
 
-def rerun_dockerized(tap_alias, target_alias=None):
-    cmd = f"tapdance {' '.join(sys.argv[1:])}"
+def rerun_dockerized(
+    tap_alias: str, target_alias: str = None, args: str = None
+) -> bool:
+    """Rerun the command from within docker.
+
+    Parameters
+    ----------
+    tap_alias : str
+        The name of the tap to use, without the tap- prefix.
+    target_alias : str, optional
+        Optional. The name of the target to use, without the tap- prefix.
+    args : str, optional
+        Optional. A list of command-line arguments. If omitted, will be parsed from the
+        command line.
+
+    Returns
+    -------
+    bool
+        True unless an error is raised.
+    """
+    if args is not None:
+        argstr = " ".join(args)
+    else:
+        argstr = " ".join(sys.argv[1:])
+    cmd = f"tapdance {argstr}"
     env = {
         k: v
         for k, v in os.environ.items()
         if (k.startswith("TAP_") or k.startswith("TARGET_"))
     }
-    image_name = get_docker_tap_image(tap_alias, target_alias)
+    image_name = _get_docker_tap_image(tap_alias, target_alias)
     try:
         dock_r.pull(image_name)
     except Exception as ex:
@@ -59,7 +85,7 @@ def rerun_dockerized(tap_alias, target_alias=None):
     return True
 
 
-def get_docker_tap_image(tap_alias, target_alias=None):
+def _get_docker_tap_image(tap_alias, target_alias=None):
     if tap_alias.startswith("tap-"):
         tap_alias = tap_alias.replace("tap-", "")
     if not target_alias:
@@ -69,7 +95,7 @@ def get_docker_tap_image(tap_alias, target_alias=None):
     return f"{BASE_DOCKER_REPO}:{tap_alias}-to-{target_alias}"
 
 
-def get_plugins_list(plugins_index=None):
+def _get_plugins_list(plugins_index=None):
     plugins_index = plugins_index or SINGER_PLUGINS_INDEX
     if not uio.file_exists(plugins_index):
         raise RuntimeError(
@@ -89,14 +115,38 @@ def get_plugins_list(plugins_index=None):
     return list_of_tuples
 
 
-def build_all_standalone(
-    source_image=None, plugins_index=None, push=False, pre=False, ignore_cache=False
-):
-    plugins = get_plugins_list(plugins_index)
+def _build_all_standalone(
+    source_image: str = None,
+    plugins_index: str = None,
+    push: bool = False,
+    pre: bool = False,
+    ignore_cache: bool = False,
+) -> List[str]:
+    """Build all standalone docker images.
+
+    Parameters
+    ----------
+    source_image : str, optional
+        Optional. Overrides the default base image.
+    plugins_index : str, optional
+        Optional. Overrides the path to the plugins index yaml file.
+    push : bool, optional
+        True to push the image after building, by default False.
+    pre : bool, optional
+        True to use the latest prerelease version, by default False.
+    ignore_cache : bool, optional
+        True to ignore rebuild all image steps, ignoring cache, by default False.
+
+    Returns
+    -------
+    List[str]
+        The list of images built.
+    """
+    plugins = _get_plugins_list(plugins_index)
     created_images = []
     for name, source, alias in plugins:
         created_images.append(
-            build_plugin_image(
+            _build_plugin_image(
                 name,
                 source=source,
                 alias=alias,
@@ -109,18 +159,18 @@ def build_all_standalone(
     return created_images
 
 
-def get_plugin_info(plugin_id, plugins_index=None):
-    plugins = get_plugins_list(plugins_index)
+def _get_plugin_info(plugin_id, plugins_index=None):
+    plugins = _get_plugins_list(plugins_index)
     for name, source, alias in plugins:
         if (alias or name) == plugin_id:
             return (name, source, alias)
     raise ValueError(f"Could not file a plugin called '{plugin_id}'")
 
 
-def build_all_composite(
+def _build_all_composite(
     source_image=None, plugins_index=None, push=False, pre=False, ignore_cache=False
 ):
-    plugins = get_plugins_list(plugins_index)
+    plugins = _get_plugins_list(plugins_index)
     created_images = []
     for tap_name, tap_source, tap_alias in plugins:
         tap_alias = tap_alias or tap_name
@@ -128,7 +178,7 @@ def build_all_composite(
             target_alias = target_alias or target_name
             if tap_alias.startswith("tap-") and target_alias.startswith("target-"):
                 created_images.append(
-                    build_composite_image(
+                    _build_composite_image(
                         tap_alias,
                         target_alias,
                         push=push,
@@ -139,7 +189,7 @@ def build_all_composite(
     return created_images
 
 
-def build_plugin_image(
+def _build_plugin_image(
     plugin_name,
     source,
     alias,
@@ -151,13 +201,13 @@ def build_plugin_image(
     source = source or plugin_name
     alias = alias or plugin_name
     image_name = f"{BASE_DOCKER_REPO}:{alias}"
-    build_cmd = f"docker build"
+    build_cmd = "docker build"
     if ignore_cache:
         build_cmd += " --no-cache"
     if source_image:
         build_cmd += f" --build-arg source_image={source_image}"
     if pre:
-        build_cmd += f" --build-arg prerelease=true"
+        build_cmd += " --build-arg prerelease=true"
         image_name += "--pre"
     build_cmd += (
         f" --build-arg PLUGIN_NAME={plugin_name}"
@@ -169,11 +219,11 @@ def build_plugin_image(
     )
     runnow.run(build_cmd)
     if push:
-        push(image_name)
+        _push(image_name)
     return image_name
 
 
-def build_composite_image(
+def _build_composite_image(
     tap_alias, target_alias, push=False, pre=False, ignore_cache=False
 ):
     if tap_alias.startswith("tap-"):
@@ -181,7 +231,7 @@ def build_composite_image(
     if target_alias.startswith("target-"):
         target_alias = target_alias.replace("target-", "", 1)
     image_name = f"{BASE_DOCKER_REPO}:{tap_alias}-to-{target_alias}"
-    build_cmd = f"docker build"
+    build_cmd = "docker build"
     if ignore_cache:
         build_cmd += " --no-cache"
     if pre:
@@ -196,11 +246,11 @@ def build_composite_image(
     )
     runnow.run(build_cmd)
     if push:
-        push(image_name)
+        _push(image_name)
     return image_name
 
 
-def push(image_name):
+def _push(image_name):
     runnow.run(f"docker push {image_name}")
 
 
@@ -224,13 +274,13 @@ def build_image(
         pre {bool} -- True to use and create prelease versions. (default: {False})
         ignore_cache {bool} -- True to build images without cached image layers. (default: {False})
     """
-    name, source, alias = get_plugin_info(f"tap-{tap_or_plugin_alias}")
-    build_plugin_image(
+    name, source, alias = _get_plugin_info(f"tap-{tap_or_plugin_alias}")
+    _build_plugin_image(
         name, source=source, alias=alias, push=push, pre=pre, ignore_cache=ignore_cache
     )
     if target_alias:
-        name, source, alias = get_plugin_info(f"target-{target_alias}")
-        build_plugin_image(
+        name, source, alias = _get_plugin_info(f"target-{target_alias}")
+        _build_plugin_image(
             name,
             source=source,
             alias=alias,
@@ -238,7 +288,7 @@ def build_image(
             pre=pre,
             ignore_cache=ignore_cache,
         )
-        build_composite_image(
+        _build_composite_image(
             tap_alias=tap_or_plugin_alias,
             target_alias=target_alias,
             push=push,
@@ -255,5 +305,5 @@ def build_all_images(push: bool = False, pre: bool = False, ignore_cache: bool =
     :param pre: Create and publish pre-release builds
     :param ignore_cache: True to build images without cached image layers. (default: {False})
     """
-    build_all_standalone(push=push, pre=pre, ignore_cache=ignore_cache)
-    build_all_composite(push=push, pre=pre, ignore_cache=ignore_cache)
+    _build_all_standalone(push=push, pre=pre, ignore_cache=ignore_cache)
+    _build_all_composite(push=push, pre=pre, ignore_cache=ignore_cache)

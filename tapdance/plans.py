@@ -1,10 +1,10 @@
-"""tapdance.plan - Defines plan() function and discovery helper functions."""
+"""tapdance.plans - Defines plan() function and discovery helper functions."""
 
 import json
 import os
 from pathlib import Path
 import re
-from typing import Dict
+from typing import Dict, List, Tuple
 import yaml
 
 import uio
@@ -16,17 +16,42 @@ from tapdance import docker, config
 
 logging = get_logger("tapdance")
 
+USE_2PART_RULES = True
+
 
 @logged("running discovery on '{tap_name}'")
 def _discover(tap_name: str, config_file: str = None, catalog_dir: str = None):
-    if uio.is_windows() or uio.is_mac():
-        docker.rerun_dockerized(tap_name)
-        return
     config_file = config_file or config.get_config_file(f"tap-{tap_name}")
     catalog_dir = catalog_dir or config.get_catalog_output_dir(tap_name)
     catalog_file = f"{catalog_dir}/{tap_name}-catalog-raw.json"
     uio.create_folder(catalog_dir)
     runnow.run(f"tap-{tap_name} --config {config_file} --discover > {catalog_file}")
+
+
+def _check_rules(
+    catalog_file: str, rules_file: List[str]
+) -> Tuple[Dict[str, Dict[str, str]], List[str]]:
+    # Check rules_file to fill `matches`
+    select_rules = [
+        line.split("#")[0].rstrip()
+        for line in uio.get_text_file_contents(rules_file).splitlines()
+        if line.split("#")[0].rstrip()
+    ]
+    matches: Dict[str, dict] = {}
+    excluded_table_list = []
+    for table_name, table_object in _get_catalog_tables_dict(catalog_file).items():
+        table_match_text = f"{table_name}"
+        if _table_match_check(table_match_text, select_rules):
+            matches[table_name] = {}
+            for col_object in _get_catalog_table_columns(table_object):
+                col_name = col_object
+                col_match_text = f"{table_name}.{col_name}"
+                matches[table_name][col_name] = _col_match_check(
+                    col_match_text, select_rules
+                )
+        else:
+            excluded_table_list.append(table_name)
+    return matches, excluded_table_list
 
 
 @logged("Updating plan file for 'tap-{tap_name}'")
@@ -37,6 +62,7 @@ def plan(
     taps_dir: str = None,
     config_dir: str = None,
     config_file: str = None,
+    dockerized: bool = None,
 ):
     """
     Perform all actions necessary to prepare (plan) for a tap execution.
@@ -60,16 +86,39 @@ def plan(
         (Default="${taps_dir}/.secrets")
         config_file {str} -- Optional. The location of the JSON config file which contains
         config for the specified plugin. (Default=f"${config_dir}/${plugin_name}-config.json")
+        dockerized {bool} -- Optional. If specified, will override the default behavior for
+        the local platform.
     """
-    if uio.is_windows() or uio.is_mac():
-        docker.rerun_dockerized(tap_name)
+    if (dockerized is None) and (uio.is_windows() or uio.is_mac()):
+        dockerized = True
+        logging.info(
+            "The 'dockerized' argument is not set when running either Windows or OSX."
+            "Attempting to run sync from inside docker."
+        )
+    if dockerized:
+        args = ["plan", tap_name]
+        for var in [
+            "rescan",
+            "taps_dir",
+            "config_dir",
+            "config_file",
+        ]:
+            if var in locals() and locals()[var]:
+                args.append(f"--{var}={locals()[var]}")
+        docker.rerun_dockerized(tap_name, args=args)
         return
+
+    # Initialize paths
     taps_dir = config.get_taps_dir(taps_dir)
     config_file = config_file or config.get_config_file(
         f"tap-{tap_name}", config_dir=config_dir
     )
     catalog_dir = config.get_catalog_output_dir(tap_name)
     catalog_file = f"{catalog_dir}/{tap_name}-catalog-raw.json"
+    if not uio.file_exists(config_file):
+        raise FileNotFoundError(config_file)
+    if not uio.file_exists(catalog_file):
+        raise FileNotFoundError(catalog_file)
     selected_catalog_file = f"{catalog_dir}/{tap_name}-catalog-selected.json"
     plan_file = config.get_plan_file(tap_name, taps_dir)
     if (
@@ -78,31 +127,34 @@ def plan(
     ):
         logging.info(f"Cleaning up empty catalog file: {catalog_file}")
         uio.delete_file(catalog_file)
+
     if rescan or not uio.file_exists(catalog_file):
+        # Run discover, if needed, to get catalog.json (raw)
         _discover(tap_name, config_file, catalog_dir)
+
     rules_file = config.get_rules_file(taps_dir, tap_name)
-    select_rules = [
-        line.split("#")[0].rstrip()
-        for line in uio.get_text_file_contents(rules_file).splitlines()
-        if line.split("#")[0].rstrip()
-    ]
-    matches: Dict[str, dict] = {}
-    excluded_tables = []
-    for table_name, table_object in _get_catalog_tables_dict(catalog_file).items():
-        table_match_text = f"{tap_name}.{table_name}"
-        if _table_match_check(table_match_text, select_rules):
-            matches[table_name] = {}
-            for col_object in _get_catalog_table_columns(table_object):
-                col_name = col_object
-                col_match_text = f"{tap_name}.{table_name}.{col_name}"
-                matches[table_name][col_name] = _col_match_check(
-                    col_match_text, select_rules
-                )
-        else:
-            excluded_tables.append(table_name)
+    matches, excluded_tables = _check_rules(
+        catalog_file=catalog_file, rules_file=rules_file
+    )
+
+    file_text = _make_plan_file_text(matches, excluded_tables)
+    uio.create_text_file(plan_file, file_text)
+
+    _create_selected_catalog(
+        tap_name,
+        plan_file=plan_file,
+        full_catalog_file=catalog_file,
+        output_file=selected_catalog_file,
+    )
+
+
+def _make_plan_file_text(
+    matches: Dict[str, Dict[str, str]], excluded_tables_list: List[str]
+) -> str:
     sorted_tables = sorted(matches.keys())
+
     file_text = ""
-    file_text += f"selected_tables:\n"
+    file_text += "selected_tables:\n"
     for table in sorted_tables:
         included_cols = [col for col, selected in matches[table].items() if selected]
         ignored_cols = [col for col, selected in matches[table].items() if not selected]
@@ -114,17 +166,11 @@ def plan(
             file_text += f"{'  ' * 2}ignored_columns:\n"
             for col in ignored_cols:
                 file_text += f"{'  ' * 2}- {col}\n"
-    if excluded_tables:
-        file_text += f"ignored_tables:\n"
-        for table in sorted(excluded_tables):
+    if excluded_tables_list:
+        file_text += "ignored_tables:\n"
+        for table in sorted(excluded_tables_list):
             file_text += f"{'  ' * 1}- {table}\n"
-    uio.create_text_file(plan_file, file_text)
-    _create_selected_catalog(
-        tap_name,
-        plan_file=plan_file,
-        full_catalog_file=catalog_file,
-        output_file=selected_catalog_file,
-    )
+    return file_text
 
 
 def _get_catalog_table_columns(table_object):
@@ -148,7 +194,7 @@ def _create_selected_catalog(
     source_catalog_path = full_catalog_file or os.path.join(
         catalog_dir, "catalog-raw.json"
     )
-    output_file = output_file or os.path.join(catalog_dir, f"selected-catalog.json")
+    output_file = output_file or os.path.join(catalog_dir, "selected-catalog.json")
     catalog_full = json.loads(Path(source_catalog_path).read_text())
     plan_file = plan_file or config.get_plan_file(tap_name)
     plan = yaml.safe_load(uio.get_text_file_contents(plan_file))
@@ -274,8 +320,10 @@ def _check_column_rule(match_text: str, rule_text: str):
     table_match = rule_text.split(".")[0]
     column_match = ".".join(rule_text.split(".")[1:])
     if not _is_match(match_text.split(".")[0], table_match):
+        # Non-matching table part; skip!
         return None
     if not _is_match(match_text.split(".")[1], column_match):
+        # Non-matching column part; skip!
         return None
     return match_result
 
@@ -287,20 +335,31 @@ def _check_table_rule(match_text: str, rule_text: str):
         rule_text = rule_text[1:]
     else:
         match_result = True  # Include if matched
-    rule_text = rule_text.replace("**.", "*.*.")
-    if "*.*." in rule_text:
-        return None  # Global column rules do not apply to tables
-    if match_result is True and rule_text[-2:] == ".*":
-        rule_text = rule_text[:-2]
-    if len(rule_text.split(".")) > 2:
-        return None  # Column rules do not apply to tables
-    tap_name, table_name = (
-        match_text.split(".")[0],
-        ".".join(match_text.split(".")[1:]),
-    )
-    tap_rule, table_rule = (rule_text.split(".")[0], ".".join(rule_text.split(".")[1:]))
-    if not _is_match(tap_name, tap_rule):
+    if USE_2PART_RULES:
+        if match_result is True and rule_text[-2:] == ".*":
+            # Ignore the "all columns" spec for table selection
+            rule_text = rule_text[:-2]
+        if rule_text[:2] == "*.":
+            # Global column rules do not apply to tables
+            return None
+    else:
+        rule_text = rule_text.replace("**.", "*.*.")
+        if "*.*." in rule_text:
+            # Global column rules do not apply to tables
+            return None
+    if len(rule_text.split(".")) > 1:
+        # Column rules do not affect table inclusion
         return None
+    if USE_2PART_RULES:
+        table_name = match_text.split(".")[0]
+        table_rule = rule_text.split(".")[0]
+    else:  # Using 3-part rules, including tap name as first part
+        tap_name = match_text.split(".")[0]
+        tap_rule = rule_text.split(".")[0]
+        table_name = ".".join(match_text.split(".")[1:])
+        table_rule = ".".join(rule_text.split(".")[1:])
+        if not _is_match(tap_name, tap_rule):
+            return None
     if not _is_match(table_name, table_rule):
         return None
     # Table '{match_text}' matched table filter '{table_rule}' in '{rule_text}'"

@@ -4,8 +4,8 @@ import fire
 
 from tapdance.docker import build_all_images, build_image
 from tapdance.install_helper import install
-from tapdance.plan import plan
-from tapdance.sync import sync
+from tapdance.plans import plan
+from tapdance.syncs import sync
 
 
 def main():

@@ -18,6 +18,6 @@ OpportunityTag.*
 
 # Advanced Column Exclusions:
 
-!**./(first|last).*name/
-!**./credit.*card.*/
-!**.*__c
+!*./(first|last).*name/
+!*./credit.*card.*/
+!*.*__c

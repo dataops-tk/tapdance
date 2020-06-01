@@ -24,7 +24,7 @@ ENV_TAP_CONFIG_DIR = "TAP_CONFIG_DIR"
 ENV_TAP_STATE_FILE = "TAP_STATE_FILE"
 
 
-def get_config_file(plugin_name, config_dir=None):
+def get_config_file(plugin_name: str, config_dir: str = None, required: bool = True):
     """
     Return a path to the configuration file which also contains secrets.
 
@@ -34,13 +34,15 @@ def get_config_file(plugin_name, config_dir=None):
      - If the default file exists and environment variables also exist, the temp file will
     contain the default file values along with the environment variable overrides.
     """
-    secrets_path = config_dir or get_secrets_dir()
+    secrets_path = os.path.abspath(config_dir or get_secrets_dir())
     default_path = f"{secrets_path}/{plugin_name}-config.json"
     tmp_path = f"{secrets_path}/tmp/{plugin_name}-config.json"
     use_tmp_file = False
     if uio.file_exists(default_path):
         json_text = uio.get_text_file_contents(default_path)
         conf_dict = json.loads(json_text)
+    elif required:
+        raise FileExistsError(default_path)
     else:
         conf_dict = {}
         use_tmp_file = True
@@ -53,6 +55,8 @@ def get_config_file(plugin_name, config_dir=None):
     if use_tmp_file:
         uio.create_folder(str(Path(tmp_path).parent))
         uio.create_text_file(tmp_path, json.dumps(conf_dict))
+        if not uio.file_exists(tmp_path):
+            raise FileExistsError(tmp_path)
         return tmp_path
     return default_path
 
@@ -61,7 +65,7 @@ def get_pipeline_version_number():
     return os.environ.get(ENV_PIPELINE_VERSION_NUMBER, "1")
 
 
-def get_state_file_path() -> Optional[str]:
+def get_state_file_path(required: bool = True) -> Optional[str]:
     """Return a path to the state file or None if no state file path is configured.
 
     Returns
@@ -96,7 +100,7 @@ def get_taps_dir(override: str = None) -> str:
     return uio.make_local(taps_dir)  # if remote path provided, download locally
 
 
-def get_plan_file(tap_name: str, taps_dir: str = None) -> str:
+def get_plan_file(tap_name: str, taps_dir: str = None, required: bool = True) -> str:
     """Get path to plan file.
 
     Parameters
@@ -111,7 +115,10 @@ def get_plan_file(tap_name: str, taps_dir: str = None) -> str:
     str
         The path to the file.
     """
-    return os.path.join(get_taps_dir(taps_dir), f"{tap_name}.plan.yml")
+    result = os.path.join(get_taps_dir(taps_dir), f"{tap_name}.plan.yml")
+    if required and not uio.file_exists(result):
+        raise FileExistsError(result)
+    return result
 
 
 def get_root_dir():
@@ -137,5 +144,8 @@ def get_catalog_output_dir(tap_name):
     return result
 
 
-def get_rules_file(taps_dir, tap_name):
-    return os.path.join(get_taps_dir(taps_dir), f"{tap_name}.rules.txt")
+def get_rules_file(taps_dir: str, tap_name: str, required: bool = True):
+    result = os.path.join(get_taps_dir(taps_dir), f"{tap_name}.rules.txt")
+    if required and not uio.file_exists(result):
+        raise FileExistsError(result)
+    return result

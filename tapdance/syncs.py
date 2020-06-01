@@ -1,4 +1,4 @@
-"""tapdance.sync - Module containing the sync() function and sync helper functions."""
+"""tapdance.syncs - Module containing the sync() function and sync helper functions."""
 
 import json
 import os
@@ -7,7 +7,7 @@ import uio
 import runnow
 from logless import get_logger, logged
 
-from tapdance import config, docker, plan
+from tapdance import config, docker, plans
 
 # These plugins will attempt to scrape and pass along AWs Credentials from the local environment.
 S3_TARGET_IDS = ["S3-CSV", "REDSHIFT", "SNOWFLAKE"]
@@ -61,14 +61,28 @@ def sync(
         state_file {str} -- Optional. The path to a state file. If not provided, a state
         file path will be generated automatically within `catalog_dir`.
     """
-    if dockerized is None:
-        if uio.is_windows() or uio.is_mac():
-            logging.info(
-                "The 'dockerized' argument is not set when running either Windows or OSX."
-                "Attempting to run sync from inside docker."
-            )
-            docker.rerun_dockerized(tap_name, target_name)
-            return
+    if (dockerized is None) and (uio.is_windows() or uio.is_mac()):
+        dockerized = True
+        logging.info(
+            "The 'dockerized' argument is not set when running either Windows or OSX."
+            "Attempting to run sync from inside docker."
+        )
+    if dockerized:
+        args = ["plan", tap_name, target_name]
+        for var in [
+            "table_name",
+            "rescan",
+            "taps_dir",
+            "config_dir",
+            "config_file",
+            "catalog_dir",
+            "target_config_file",
+            "state_file",
+        ]:
+            if var in locals() and locals()[var]:
+                args.append(f"--{var}={locals()[var]}")
+        docker.rerun_dockerized(tap_name, args=args)
+        return
     taps_dir = config.get_taps_dir(taps_dir)
     rules_file = config.get_rules_file(taps_dir, tap_name)
     config_file = config_file or config.get_config_file(f"tap-{tap_name}", config_dir)
@@ -80,7 +94,7 @@ def sync(
     if rescan or rules_file or not uio.file_exists(full_catalog_file):
         # Create or update `*-catalog-selected.json` and `plan-*.yml` files
         # using the `{tap-name}.rules.txt` rules file
-        plan.plan(
+        plans.plan(
             tap_name,
             taps_dir=taps_dir,
             config_file=config_file,
@@ -88,7 +102,9 @@ def sync(
             rescan=rescan,
         )
     if table_name is None or table_name == "*":
-        list_of_tables = sorted(plan._get_catalog_tables_dict(full_catalog_file).keys())
+        list_of_tables = sorted(
+            plans._get_catalog_tables_dict(full_catalog_file).keys()
+        )
     else:
         list_of_tables = [table_name]
 
@@ -100,7 +116,7 @@ def sync(
             or config.get_state_file_path()
             or f"{catalog_dir}/{table}-state.json"
         )
-        plan._create_single_table_catalog(
+        plans._create_single_table_catalog(
             tap_name=tap_name,
             table_name=table,
             full_catalog_file=full_catalog_file,
