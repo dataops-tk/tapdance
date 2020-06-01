@@ -29,6 +29,7 @@ def sync(
     catalog_dir: str = None,
     target_config_file: str = None,
     state_file: str = None,
+    exclude_tables: List[str] = None,
 ):
     """
     Synchronize data from tap to target.
@@ -39,7 +40,9 @@ def sync(
     Keyword Arguments:
         target_name {str} -- The name/alias of the target, without the `tap-` prefix.
         (default: {"csv"})
-        table_name {str} -- The name of the table to sync or "*" to sync all.
+        table_name {str} -- The name of the table to sync. To sync multiple tables, specify
+        a comma-separated list of tables surrounded by queare brackets (e.g. "[tb1,tbl2]"),
+        or use "*" to sync all table.
         (default: {"*"})
         rescan {bool} -- Optional. True to force a rescan and replace existing metadata.
         (default: False)
@@ -60,6 +63,8 @@ def sync(
         config for the specified target. (Default=f"${config_dir}/${plugin_name}-config.json")
         state_file {str} -- Optional. The path to a state file. If not provided, a state
         file path will be generated automatically within `catalog_dir`.
+        exclude_table_names {List(str)} -- Optional. A list of tables to exclude. Ignored
+        if table_name arg is not "*".
     """
     if (dockerized is None) and (uio.is_windows() or uio.is_mac()):
         dockerized = True
@@ -101,13 +106,22 @@ def sync(
             config_dir=catalog_dir,
             rescan=rescan,
         )
-    if table_name is None or table_name == "*":
+    if isinstance(table_name, list):
+        list_of_tables = table_name
+    elif table_name is None or table_name == "*":
         list_of_tables = sorted(
             plans._get_catalog_tables_dict(full_catalog_file).keys()
         )
+    elif table_name[0] == "[":
+        # Remove square brackets and split the result on commas
+        list_of_tables = table_name.replace("[", "").replace("]", "").split(",")
     else:
         list_of_tables = [table_name]
+    if exclude_tables:
+        logging.info(f"Table(s) to exclude from sync: {', '.join(exclude_tables)}")
+        list_of_tables = [t for t in list_of_tables if t not in exclude_tables]
 
+    logging.info(f"Table(s) to sync: {', '.join(list_of_tables)}")
     for table in list_of_tables:
         # Call each tap independently so that table state files are kept separate:
         tmp_catalog_file = f"{catalog_dir}/{tap_name}-{table}-catalog.json"
