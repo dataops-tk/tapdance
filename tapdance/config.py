@@ -4,7 +4,7 @@ import json
 import os
 from pathlib import Path
 
-from logless import get_logger
+from logless import get_logger, logged
 from typing import Optional
 import uio
 
@@ -27,6 +27,10 @@ ENV_TAP_CONFIG_DIR = "TAP_CONFIG_DIR"
 ENV_TAP_STATE_FILE = "TAP_STATE_FILE"
 
 
+@logged(
+    "getting '{plugin_name}' config file using: config_dir={config_dir}, "
+    "config_file={config_file}, required={required}"
+)
 def get_config_file(
     plugin_name: str,
     config_dir: str = None,
