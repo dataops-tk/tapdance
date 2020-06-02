@@ -52,7 +52,16 @@ setup(
         ]
     },
     include_package_data=True,
-    install_requires=["docker", "dock-r", "fire", "logless", "pyyaml", "runnow", "uio"],
+    install_requires=[
+        "docker",
+        "dock-r",
+        "fire",
+        "logless",
+        "pyyaml",
+        "runnow",
+        "uio",
+        "importlib-metadata",  # required for python versions < 3.8
+    ],
     extras_require={
         "AWS": ["boto3", "s3fs"],
         "Azure": ["azure-storage-blob", "azure-storage-file-datalake"],
@@ -63,6 +72,7 @@ setup(
         "Topic :: Software Development :: Build Tools",
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
     ],
 )
 # Revert `.dev0` suffix
