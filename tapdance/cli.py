@@ -10,6 +10,7 @@ from tapdance.syncs import sync
 
 def main():
     """Run the tapdance CLI."""
+    print_version()
     fire.Fire(
         {
             "install": install,

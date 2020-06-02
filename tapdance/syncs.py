@@ -92,9 +92,11 @@ def sync(
     config_required = True
     target_config_required = True
     if config_file and config_file.lower() == "false":
+        logging.info("Skipping check for tap config (--config_file=False)")
         config_file = None
         config_required = False
     if target_config_file and target_config_file.lower() == "false":
+        logging.info("Skipping check for target config (--target_config_file=False)")
         target_config_file = None
         target_config_required = False
     config_file = config.get_config_file(

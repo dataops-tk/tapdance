@@ -47,28 +47,33 @@ def get_config_file(
     tmp_path = f"{secrets_path}/tmp/{plugin_name}-config.json"
     use_tmp_file = False
     if uio.file_exists(config_file):
-        json_text = uio.get_text_file_contents(config_file)
-        conf_dict = json.loads(json_text)
+        conf_dict = json.loads(uio.get_text_file_contents(config_file))
     elif required:
         raise FileExistsError(config_file)
     else:
+        logging.info(f"No {plugin_name} config file exists. A file will be created...")
         conf_dict = {}
         use_tmp_file = True
+
+    # Parse settings and secrets from environment variables
     for k, v in os.environ.items():
         prefix = f"{plugin_name.replace('-', '_').upper()}_"
         if k.startswith(prefix):
+            logging.info(f"Parsing env variable '{k}' for '{plugin_name}'...")
             setting_name = k.split(prefix)[1]
             conf_dict[setting_name] = v
             use_tmp_file = True
     if "-".join(plugin_name.split("-")[1:]).upper() in S3_TARGET_IDS:
         conf_dict = _inject_s3_config_creds(plugin_name, conf_dict)
+        use_tmp_file = True
 
     if use_tmp_file:
+        logging.info(f"Writing temporary config file to '{tmp_path}'...")
         uio.create_folder(str(Path(tmp_path).parent))
         uio.create_text_file(tmp_path, json.dumps(conf_dict))
-        if not uio.file_exists(tmp_path):
-            raise FileExistsError(tmp_path)
-        return tmp_path
+        config_file = tmp_path
+    if not uio.file_exists(config_file):
+        raise FileExistsError(config_file)
     return config_file
 
 
