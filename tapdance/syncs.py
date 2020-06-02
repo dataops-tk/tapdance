@@ -54,14 +54,16 @@ def sync(
         config_dir {str} -- Optional. The default location of config, catalog and other
         potentially sensitive information. (Recommended to be excluded from source control.)
         (Default="${taps_dir}/.secrets")
-        config_file {str} -- Optional. The location of the JSON config file which contains
-        config for the specified tap. (Default=f"${config_dir}/${plugin_name}-config.json")
+        config_file {str} -- Optional. The location of the JSON config file which
+        contains config for the specified tap or 'False' to only pull settings from
+        environment variables. Default path is f"${config_dir}/${plugin_name}-config.json".
 
         catalog_dir {str} -- Optional. The output directory to be used for saving catalog
         files. If not provided, a path will be generated automatically within `.output` or
         a path specified by the `TAP_SCRATCH_DIR` environment variable.
-        target_config_file {str} -- Optional. The location of the JSON config file which contains
-        config for the specified target. (Default=f"${config_dir}/${plugin_name}-config.json")
+        target_config_file {str} -- Optional. The location of the JSON config file which
+        contains config for the specified target or 'False' to only pull settings from
+        environment variables. Default path is f"${config_dir}/${plugin_name}-config.json".
         state_file {str} -- Optional. The path to a state file. If not provided, a state
         file path will be generated automatically within `catalog_dir`.
         exclude_table_names {List(str)} -- Optional. A list of tables to exclude. Ignored
@@ -91,10 +93,14 @@ def sync(
         return
     taps_dir = config.get_taps_dir(taps_dir)
     rules_file = config.get_rules_file(taps_dir, tap_name)
-    config_file = config_file or config.get_config_file(f"tap-{tap_name}", config_dir)
-    target_config_file = target_config_file or config.get_config_file(
-        f"target-{target_name}", config_dir
-    )
+    if config_file and config_file.lower() == "false":
+        config_file = None
+    elif config_file is None:
+        config_file = config.get_config_file(f"tap-{tap_name}", config_dir)
+    if target_config_file and target_config_file.lower() == "false":
+        target_config_file = None
+    elif target_config_file is None:
+        target_config_file = config.get_config_file(f"target-{target_name}", config_dir)
     catalog_dir = catalog_dir or config.get_catalog_output_dir(tap_name)
     full_catalog_file = f"{catalog_dir}/{tap_name}-catalog-selected.json"
     if rescan or rules_file or not uio.file_exists(full_catalog_file):
