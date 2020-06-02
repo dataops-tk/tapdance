@@ -95,11 +95,11 @@ def sync(
         "Attempting to configure sync using config_file={config_file} and "
         "target_config_file={target_config_file}."
     )
-    if (config_file is not None) and config_file.lower() == "false":
+    if (config_file is not None) and str(config_file).lower() == "false":
         logging.info("Skipping check for tap config (--config_file=False)")
         config_file = None
         config_required = False
-    if (target_config_file is not None) and target_config_file.lower() == "false":
+    if (target_config_file is not None) and str(target_config_file).lower() == "false":
         logging.info("Skipping check for target config (--target_config_file=False)")
         target_config_file = None
         target_config_required = False
