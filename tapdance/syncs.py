@@ -89,6 +89,8 @@ def sync(
         return
     taps_dir = config.get_taps_dir(taps_dir)
     rules_file = config.get_rules_file(taps_dir, tap_name)
+    config_required = True
+    target_config_required = True
     if config_file and config_file.lower() == "false":
         config_file = None
         config_required = False

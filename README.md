@@ -72,7 +72,7 @@ git clone https://github.com/aaronsteers/tapdance.git
 ```ini
 # This is the simplest rules file, imports all tables and all columns from all sources:
 
-*.*.*
+*.*
 ```
 
 **Select a sample:**
