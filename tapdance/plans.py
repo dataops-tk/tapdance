@@ -20,9 +20,7 @@ USE_2PART_RULES = True
 
 
 @logged("running discovery on '{tap_name}'")
-def _discover(tap_name: str, config_file: str = None, catalog_dir: str = None):
-    config_file = config_file or config.get_config_file(f"tap-{tap_name}")
-    catalog_dir = catalog_dir or config.get_catalog_output_dir(tap_name)
+def _discover(tap_name: str, config_file: str, catalog_dir: str):
     catalog_file = f"{catalog_dir}/{tap_name}-catalog-raw.json"
     uio.create_folder(catalog_dir)
     runnow.run(f"tap-{tap_name} --config {config_file} --discover > {catalog_file}")
@@ -110,15 +108,20 @@ def plan(
 
     # Initialize paths
     taps_dir = config.get_taps_dir(taps_dir)
-    config_file = config_file or config.get_config_file(
-        f"tap-{tap_name}", config_dir=config_dir
+    config_required = True
+    if config_file and config_file.lower() == "False":
+        config_file = None
+        config_required = False
+    config_file = config.get_config_file(
+        f"tap-{tap_name}",
+        config_dir=config_dir,
+        config_file=config_file,
+        required=config_required,
     )
+    if not uio.file_exists(config_file):
+        raise FileExistsError(config_file)
     catalog_dir = config.get_catalog_output_dir(tap_name)
     catalog_file = f"{catalog_dir}/{tap_name}-catalog-raw.json"
-    if not uio.file_exists(config_file):
-        raise FileNotFoundError(config_file)
-    if not uio.file_exists(catalog_file):
-        raise FileNotFoundError(catalog_file)
     selected_catalog_file = f"{catalog_dir}/{tap_name}-catalog-selected.json"
     plan_file = config.get_plan_file(tap_name, taps_dir)
     if (

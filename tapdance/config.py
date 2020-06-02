@@ -10,6 +10,9 @@ import uio
 
 logging = get_logger("tapdance")
 
+# These plugins will attempt to scrape and pass along AWs Credentials from the local environment.
+S3_TARGET_IDS = ["S3-CSV", "REDSHIFT", "SNOWFLAKE"]
+
 SINGER_PLUGINS_INDEX = os.environ.get("SINGER_PLUGINS_INDEX", "./singer_index.yml")
 VENV_ROOT = "/venv"
 INSTALL_ROOT = "/usr/bin"
@@ -24,7 +27,12 @@ ENV_TAP_CONFIG_DIR = "TAP_CONFIG_DIR"
 ENV_TAP_STATE_FILE = "TAP_STATE_FILE"
 
 
-def get_config_file(plugin_name: str, config_dir: str = None, required: bool = True):
+def get_config_file(
+    plugin_name: str,
+    config_dir: str = None,
+    config_file: str = None,
+    required: bool = True,
+):
     """
     Return a path to the configuration file which also contains secrets.
 
@@ -35,14 +43,14 @@ def get_config_file(plugin_name: str, config_dir: str = None, required: bool = T
     contain the default file values along with the environment variable overrides.
     """
     secrets_path = os.path.abspath(config_dir or get_secrets_dir())
-    default_path = f"{secrets_path}/{plugin_name}-config.json"
+    config_file = config_file or f"{secrets_path}/{plugin_name}-config.json"
     tmp_path = f"{secrets_path}/tmp/{plugin_name}-config.json"
     use_tmp_file = False
-    if uio.file_exists(default_path):
-        json_text = uio.get_text_file_contents(default_path)
+    if uio.file_exists(config_file):
+        json_text = uio.get_text_file_contents(config_file)
         conf_dict = json.loads(json_text)
     elif required:
-        raise FileExistsError(default_path)
+        raise FileExistsError(config_file)
     else:
         conf_dict = {}
         use_tmp_file = True
@@ -52,13 +60,16 @@ def get_config_file(plugin_name: str, config_dir: str = None, required: bool = T
             setting_name = k.split(prefix)[1]
             conf_dict[setting_name] = v
             use_tmp_file = True
+    if "-".join(plugin_name.split("-")[1:]).upper() in S3_TARGET_IDS:
+        conf_dict = _inject_s3_config_creds(plugin_name, conf_dict)
+
     if use_tmp_file:
         uio.create_folder(str(Path(tmp_path).parent))
         uio.create_text_file(tmp_path, json.dumps(conf_dict))
         if not uio.file_exists(tmp_path):
             raise FileExistsError(tmp_path)
         return tmp_path
-    return default_path
+    return config_file
 
 
 def get_pipeline_version_number():
@@ -149,3 +160,69 @@ def get_rules_file(taps_dir: str, tap_name: str, required: bool = True):
     if required and not uio.file_exists(result):
         raise FileExistsError(result)
     return result
+
+
+def _inject_s3_config_creds(
+    plugin_name: str, config_defaults: dict,
+):
+    if (
+        "aws_access_key_id" in config_defaults
+        and "aws_secret_access_key" in config_defaults
+    ):
+        logging.info("AWS creds captured from '{plugin_name}' config")
+        return config_defaults
+    logging.info("Scanning for AWS creds for '{plugin_name}' config...")
+    new_config = config_defaults.copy()
+    (
+        aws_access_key_id,
+        aws_secret_access_key,
+        aws_session_token,
+    ) = uio.parse_aws_creds()
+    if aws_access_key_id and aws_secret_access_key:
+        logging.info(
+            "Passing 'aws_access_key_id' and 'aws_secret_access_key' "
+            f"credentials to '{plugin_name}'"
+        )
+        new_config["aws_access_key_id"] = aws_access_key_id
+        new_config["aws_secret_access_key"] = aws_secret_access_key
+    else:
+        logging.warning(
+            f"Could not find 'aws_access_key_id' and 'aws_secret_access_key' "
+            f"credentials for '{plugin_name}'"
+        )
+    if aws_session_token:
+        logging.info(f"Passing 'aws_session_token' to '{plugin_name}'")
+        new_config["aws_session_token"] = aws_session_token
+    return new_config
+
+
+def get_single_table_target_config_file(
+    target_name, target_config_file, *, tap_name, table_name, pipeline_version_num,
+):
+    config_defaults = json.loads(uio.get_text_file_contents(target_config_file))
+    new_config = replace_placeholders(
+        config_defaults, tap_name, table_name, pipeline_version_num
+    )
+    new_file_path = target_config_file.replace(".json", f"-{table_name}.json")
+    uio.create_text_file(new_file_path, json.dumps(new_config))
+    return new_file_path
+
+
+def replace_placeholders(config_dict, tap_name, table_name, pipeline_version_num):
+    new_config = config_dict.copy()
+    for setting_name in new_config.keys():
+        for param, replacement_value in {
+            "tap": tap_name,
+            "table": table_name,
+            "version": pipeline_version_num,
+        }.items():
+            search_key = "{" + f"{param}" + "}"
+            if search_key in new_config[setting_name]:
+                logging.info(
+                    f"Modifying '{setting_name}' setting value, "
+                    f"replacing '{search_key}' placeholder with '{replacement_value}'."
+                )
+                new_config[setting_name] = new_config[setting_name].replace(
+                    search_key, replacement_value
+                )
+    return new_config
