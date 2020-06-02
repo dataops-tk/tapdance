@@ -25,7 +25,7 @@ BASE_DOCKER_REPO = "dataopstk/tapdance"
 
 
 def rerun_dockerized(
-    tap_alias: str, target_alias: str = None, args: str = None
+    tap_alias: str, target_alias: str = None, args: List[str] = None
 ) -> bool:
     """Rerun the command from within docker.
 
@@ -35,7 +35,7 @@ def rerun_dockerized(
         The name of the tap to use, without the tap- prefix.
     target_alias : str, optional
         Optional. The name of the target to use, without the tap- prefix.
-    args : str, optional
+    args : List[str], optional
         Optional. A list of command-line arguments. If omitted, will be parsed from the
         command line.
 
