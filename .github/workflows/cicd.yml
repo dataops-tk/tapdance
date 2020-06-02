@@ -77,21 +77,21 @@ jobs:
         run: |
           pwd
           ls -la
-          VER=$(cat VERSION)
-          PIPERR=$(pip install tapdance==versioncheck 2>&1)
+          export VER=$(cat VERSION)
+          export PIPERR=$(pip install tapdance==versioncheck 2>&1)
           echo "Checking for PyPi availability of version $VER"
           if [[ $PIPERR == *"$VER"* ]]; then { echo "Yes"; } else { echo "Not yet found..."; sleep 30; } fi;
-          PIPERR=$(pip install tapdance==versioncheck 2>&1)
+          export PIPERR=$(pip install tapdance==versioncheck 2>&1)
           if [[ $PIPERR == *"$VER"* ]]; then { echo "Yes"; } else { echo "Not yet found..."; sleep 30; } fi;
-          PIPERR=$(pip install tapdance==versioncheck 2>&1)
+          export PIPERR=$(pip install tapdance==versioncheck 2>&1)
           if [[ $PIPERR == *"$VER"* ]]; then { echo "Yes"; } else { echo "Not yet found..."; sleep 30; } fi;
-          PIPERR=$(pip install tapdance==versioncheck 2>&1)
+          export PIPERR=$(pip install tapdance==versioncheck 2>&1)
           if [[ $PIPERR == *"$VER"* ]]; then { echo "Yes"; } else { echo "Not yet found..."; sleep 30; } fi;
-          PIPERR=$(pip install tapdance==versioncheck 2>&1)
+          export PIPERR=$(pip install tapdance==versioncheck 2>&1)
           if [[ $PIPERR == *"$VER"* ]]; then { echo "Yes"; } else { echo "Not yet found..."; sleep 30; } fi;
-          PIPERR=$(pip install tapdance==versioncheck 2>&1)
+          export PIPERR=$(pip install tapdance==versioncheck 2>&1)
           if [[ $PIPERR == *"$VER"* ]]; then { echo "Yes"; } else { echo "Not yet found..."; sleep 30; } fi;
-          PIPERR=$(pip install tapdance==versioncheck 2>&1)
+          export PIPERR=$(pip install tapdance==versioncheck 2>&1)
           if [[ $PIPERR == *"$VER"* ]]; then { echo "Yes"; } else { echo "Not found. Giving up. Last message from PyPi was $PIPERR"; } fi;
 
       # - name: Sleep before install
