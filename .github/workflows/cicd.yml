@@ -74,6 +74,7 @@ jobs:
           echo -e "\nPublishing to version ref '$VERSION'...\n\n"
           twine upload -u $PYPI_USER -p $PYPI_PASS dist/*
       - name: Wait up to 3 minutes for PyPi availability
+        run: |
           VER=$(cat VERSION)
           PIPERR=$(pip install tapdance==versioncheck 2>&1)
           echo "Checking for PyPi availability of version $VER"
