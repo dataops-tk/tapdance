@@ -127,7 +127,8 @@ jobs:
       - name: Build and push all *prioritized* pre-release singer images
         run: |
           cd docker
-          tapdance build_image salesforce snowflake --pre --push
+          tapdance build_image pardot snowflake-test --pre --push
+          tapdance build_image salesforce snowflake-test --pre --push
         # tapdance build_image salesforce s3-csv --pre --push
         # tapdance build_image covid-19 s3-csv --pre --push
         # tapdance build_image covid-19 redshift --pre --push
