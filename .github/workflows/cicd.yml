@@ -73,6 +73,28 @@ jobs:
           python setup.py sdist
           echo -e "\nPublishing to version ref '$VERSION'...\n\n"
           twine upload -u $PYPI_USER -p $PYPI_PASS dist/*
+      - name: Wait up to 3 minutes for PyPi availability
+        run: |
+          pwd
+          ls -la
+          export VER=$(cat VERSION)
+          export VER=${VER#"v"}
+          export PIPERR=$(pip install tapdance==versioncheck 2>&1)
+          echo "Checking for PyPi availability of version $VER"
+          if [[ $PIPERR == *"$VER"* ]]; then { echo "Yes"; } else { echo "Not yet found..."; sleep 30; } fi;
+          export PIPERR=$(pip install tapdance==versioncheck 2>&1)
+          if [[ $PIPERR == *"$VER"* ]]; then { echo "Yes"; } else { echo "Not yet found..."; sleep 30; } fi;
+          export PIPERR=$(pip install tapdance==versioncheck 2>&1)
+          if [[ $PIPERR == *"$VER"* ]]; then { echo "Yes"; } else { echo "Not yet found..."; sleep 30; } fi;
+          export PIPERR=$(pip install tapdance==versioncheck 2>&1)
+          if [[ $PIPERR == *"$VER"* ]]; then { echo "Yes"; } else { echo "Not yet found..."; sleep 30; } fi;
+          export PIPERR=$(pip install tapdance==versioncheck 2>&1)
+          if [[ $PIPERR == *"$VER"* ]]; then { echo "Yes"; } else { echo "Not yet found..."; sleep 30; } fi;
+          export PIPERR=$(pip install tapdance==versioncheck 2>&1)
+          if [[ $PIPERR == *"$VER"* ]]; then { echo "Yes"; } else { echo "Not yet found..."; sleep 30; } fi;
+          export PIPERR=$(pip install tapdance==versioncheck 2>&1)
+          if [[ $PIPERR == *"$VER"* ]]; then { echo "Yes"; } else { echo "Not found. Giving up. Last message from PyPi was $PIPERR"; exit 1; } fi;
+
       # - name: Sleep before install
       #   run: |
       #     sleep 60
@@ -105,11 +127,12 @@ jobs:
       - name: Build and push all *prioritized* pre-release singer images
         run: |
           cd docker
-          tapdance build_image salesforce s3-csv --pre --push
-          tapdance build_image salesforce snowflake --pre --push
-          tapdance build_image covid-19 s3-csv --pre --push
-          tapdance build_image covid-19 redshift --pre --push
-          tapdance build_image covid-19 postgres --pre --push
+          tapdance build_image pardot snowflake-test --pre --push
+          tapdance build_image salesforce snowflake-test --pre --push
+        # tapdance build_image salesforce s3-csv --pre --push
+        # tapdance build_image covid-19 s3-csv --pre --push
+        # tapdance build_image covid-19 redshift --pre --push
+        # tapdance build_image covid-19 postgres --pre --push
       - name: Build and push all pre-release singer images
         run: cd docker && tapdance build_all_images --pre --push
       - name: Print list of images

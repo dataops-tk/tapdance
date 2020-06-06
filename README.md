@@ -67,14 +67,12 @@ git clone https://github.com/aaronsteers/tapdance.git
 
 **Create a `rules` file:**
 
-> Note: In a future release, the naming convention of the rules file will be updated from `data.select` to `{tap-name}-rules.txt`.
-
-`samples/taps/covid-19/data.select`
+`samples/taps/covid-19/covid-19.rules.txt`
 
 ```ini
 # This is the simplest rules file, imports all tables and all columns from all sources:
 
-*.*.*
+*.*
 ```
 
 **Select a sample:**

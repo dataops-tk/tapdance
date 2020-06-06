@@ -1,0 +1,8 @@
+# Covid Rules
+
+*.*
+
+# Exclude extra columns we are sure we won't need:
+
+!*.git_owner
+!*.git_html_url

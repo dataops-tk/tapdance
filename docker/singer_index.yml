@@ -26,7 +26,9 @@ singer-targets:
   - { name: target-postgres, source: "pipelinewise-target-postgres" }
   - { name: target-redshift, source: "git+https://github.com/transferwise/pipelinewise-target-redshift@master" } # Pending 2.0.0 release to PyPi (https://pypi.org/project/pipelinewise-target-redshift/)
   - { name: target-snowflake, source: "pipelinewise-target-snowflake" }
+  - { name: target-snowflake, alias: "target-snowflake-test", source: "git+https://github.com/aaronsteers/pipelinewise-target-snowflake@feature/aaronsteers-retain-s3-files" }
 
 failing-taps:
+  - { name: tap-mssql }
 
 failing-targets:
