@@ -19,6 +19,8 @@ def sync(
     table_name: str = "*",
     taps_dir: str = None,
     *,
+    tap_exe: str = None,
+    target_exe: str = None,
     rescan: bool = False,
     dockerized: bool = None,
     config_dir: str = None,
@@ -65,28 +67,33 @@ def sync(
         exclude_table_names {List(str)} -- Optional. A list of tables to exclude. Ignored
         if table_name arg is not "*".
     """
+    if not tap_exe:
+        tap_exe = f"tap-{tap_name}"
+    if not target_exe:
+        target_exe = f"target-{target_name}"
     if (dockerized is None) and (uio.is_windows() or uio.is_mac()):
         dockerized = True
         logging.info(
-            "The 'dockerized' argument is not set when running either Windows or OSX."
-            "Attempting to run sync from inside docker."
+            "The 'dockerized' argument is not set when running either Windows or OSX..."
+            "Defaulting to dockerized=True"
         )
-    if dockerized:
-        args = ["plan", tap_name, target_name]
-        for var in [
-            "table_name",
-            "rescan",
-            "taps_dir",
-            "config_dir",
-            "config_file",
-            "catalog_dir",
-            "target_config_file",
-            "state_file",
-        ]:
-            if var in locals() and locals()[var]:
-                args.append(f"--{var}={locals()[var]}")
-        docker.rerun_dockerized(tap_name, args=args)
-        return
+    # Deprecated in favor of partial dockerization:
+    # if dockerized:
+    #     args = ["plan", tap_name, target_name]
+    #     for var in [
+    #         "table_name",
+    #         "rescan",
+    #         "taps_dir",
+    #         "config_dir",
+    #         "config_file",
+    #         "catalog_dir",
+    #         "target_config_file",
+    #         "state_file",
+    #     ]:
+    #         if var in locals() and locals()[var]:
+    #             args.append(f"--{var}={locals()[var]}")
+    #     docker.rerun_dockerized(tap_name, args=args)
+    #     return
     taps_dir = config.get_taps_dir(taps_dir)
     rules_file = config.get_rules_file(taps_dir, tap_name)
     config_required = True
@@ -122,7 +129,7 @@ def sync(
     catalog_dir = catalog_dir or config.get_catalog_output_dir(tap_name)
     full_catalog_file = f"{catalog_dir}/{tap_name}-catalog-selected.json"
     if rescan or rules_file or not uio.file_exists(full_catalog_file):
-        # Create or update `*-catalog-selected.json` and `plan-*.yml` files
+        # Create or update `*-catalog-selected.json` and `*-plan.yml` files
         # using the `{tap-name}.rules.txt` rules file
         plans.plan(
             tap_name,
@@ -130,6 +137,8 @@ def sync(
             config_file=config_file,
             config_dir=catalog_dir,
             rescan=rescan,
+            tap_exe=tap_exe,
+            target_exe=target_exe,
         )
     if isinstance(table_name, list):
         list_of_tables = table_name
@@ -169,7 +178,33 @@ def sync(
             target_config_file=target_config_file,
             table_catalog_file=tmp_catalog_file,
             table_state_file=table_state_file,
+            dockerized=dockerized,
+            tap_exe=tap_exe,
+            target_exe=target_exe,
         )
+
+
+def _dockerize_path(localpath, container_volume_root="/home/local"):
+    result = os.path.relpath(localpath).replace("\\", "/")
+    result = f"{container_volume_root}/{result}"
+    return result
+
+
+def _dockerize_cli_args(arg_str: str, container_volume_root="/home/local") -> str:
+    args = arg_str.split(" ")
+    newargs: List[str] = []
+    for arg in args:
+        if uio.file_exists(arg):
+            newargs.append(_dockerize_path(arg, container_volume_root))
+        elif "=" in arg:
+            left, right = arg.split("=")[0], "=".join(arg.split("=")[1:])
+            if uio.file_exists(right):
+                newargs.append(
+                    f"{left}={_dockerize_path(right, container_volume_root)}"
+                )
+        else:
+            newargs.append(arg)
+    return " ".join(newargs)
 
 
 def _sync_one_table(
@@ -180,8 +215,12 @@ def _sync_one_table(
     target_config_file: str,
     table_catalog_file: str,
     table_state_file: str,
+    dockerized: bool,
+    tap_exe: str,
+    target_exe: str,
 ):
-    tap_cmd = f"tap-{tap_name} --config {config_file} --catalog {table_catalog_file}"
+    if not tap_exe:
+        tap_exe = f"tap-{tap_name}"
     pipeline_version_num = config.get_pipeline_version_number()
     table_state_file = config.replace_placeholders(
         {"table_state_file": table_state_file},
@@ -189,7 +228,7 @@ def _sync_one_table(
         table_name,
         pipeline_version_num,
     )["table_state_file"]
-
+    tap_args = f"--config {config_file} --catalog {table_catalog_file}"
     if uio.file_exists(table_state_file):
         if uio.is_local(table_state_file):
             local_state_file = table_state_file
@@ -198,7 +237,7 @@ def _sync_one_table(
                 uio.get_scratch_dir(), os.path.basename(table_state_file)
             )
             uio.download_file(table_state_file, local_state_file)
-        tap_cmd += f" --state {local_state_file}"
+        tap_args += f" --state {local_state_file}"
     else:
         local_state_file = os.path.join(
             uio.get_temp_dir(), f"{tap_name}-{table_name}-state.json"
@@ -210,10 +249,30 @@ def _sync_one_table(
         table_name=table_name,
         pipeline_version_num=pipeline_version_num,
     )
-    sync_cmd = (
-        f"{tap_cmd} | target-{target_name} --config {tmp_target_config} "
-        f">> {local_state_file}"
-    )
+    target_args = f"--config {tmp_target_config}"
+    if dockerized:
+        cdw = os.getcwd().replace("\\", "/")
+        tap_image_name = docker._get_docker_tap_image(tap_exe)
+        target_image_name = docker._get_docker_tap_image(target_exe=target_exe)
+        sync_cmd = (
+            f"docker run --rm -it -v {cdw}:/home/local {tap_image_name} "
+            f"{_dockerize_cli_args(tap_args)} "
+            "| "
+            f"docker run --rm -it -v {cdw}:/home/local {target_image_name} "
+            f"{_dockerize_cli_args(target_args)} "
+            ">> "
+            f"{local_state_file}"
+        )
+    else:
+        sync_cmd = (
+            f"{tap_exe} "
+            f"{tap_args} "
+            "| "
+            f"{target_exe} "
+            f"{target_args} "
+            ">> "
+            f"{local_state_file}"
+        )
     runnow.run(sync_cmd)
     # TODO: decide whether trimming to only the final line is necessary
     # tail -1 state.json > state.json.tmp && mv state.json.tmp state.json

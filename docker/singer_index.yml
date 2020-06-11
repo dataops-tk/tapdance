@@ -1,14 +1,16 @@
 # An index of singer.io plugins.
 # File layout description:
-#  - name      - what the plugin calls itself (may be different from the pip package name)
-#  - source    - can be anything pip accepts (generally a git reference or a pip package name)
-#  - alias     - if supporting multiple forks of a tap, this provide a means to differentiate
+#  - name   - what the plugin calls itself (may be different from the pip package name)
+#  - source - can be: (1) anything pip accepts (generally a git reference or a pip package name)
+#                     (2) for custom/non-python plugins, a path containing the word "Dockerfile" (e.g. tap-mssql.Dockerfile)
+#  - alias  - if supporting multiple forks of a tap, this provides a means to differentiate
 
 singer-taps:
   - { name: tap-adwords }
   - { name: tap-covid-19 }
   - { name: tap-jira }
   - { name: tap-kafka, source: pipelinewise-tap-kafka }
+  - { name: tap-mssql, source: tap-mssql.Dockerfile }
   - { name: tap-mysql }
   - { name: tap-oracle }
   - { name: tap-pardot }
@@ -26,9 +28,12 @@ singer-targets:
   - { name: target-postgres, source: "pipelinewise-target-postgres" }
   - { name: target-redshift, source: "git+https://github.com/transferwise/pipelinewise-target-redshift@master" } # Pending 2.0.0 release to PyPi (https://pypi.org/project/pipelinewise-target-redshift/)
   - { name: target-snowflake, source: "pipelinewise-target-snowflake" }
-  - { name: target-snowflake, alias: "target-snowflake-test", source: "git+https://github.com/aaronsteers/pipelinewise-target-snowflake@feature/aaronsteers-retain-s3-files" }
+  - {
+      name: target-snowflake,
+      alias: "target-snowflake-test",
+      source: "git+https://github.com/aaronsteers/pipelinewise-target-snowflake@feature/aaronsteers-retain-s3-files",
+    }
 
 failing-taps:
-  - { name: tap-mssql }
 
 failing-targets:

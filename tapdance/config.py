@@ -36,7 +36,7 @@ def get_config_file(
     config_dir: str = None,
     config_file: str = None,
     required: bool = True,
-):
+) -> str:
     """
     Return a path to the configuration file which also contains secrets.
 

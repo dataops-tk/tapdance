@@ -24,75 +24,84 @@ except Exception as ex:
 BASE_DOCKER_REPO = "dataopstk/tapdance"
 
 
-def rerun_dockerized(
-    tap_alias: str, target_alias: str = None, args: List[str] = None
-) -> bool:
-    """Rerun the command from within docker.
+# Deprecated in favor of partial dockerization:
+# def rerun_dockerized(
+#     tap_alias: str,
+#     target_alias: str = None,
+#     *,
+#     tap_exe: str,
+#     target_exe: str,
+#     args: List[str] = None,
+# ) -> bool:
+#     """Rerun the command from within docker.
 
-    Parameters
-    ----------
-    tap_alias : str
-        The name of the tap to use, without the tap- prefix.
-    target_alias : str, optional
-        Optional. The name of the target to use, without the tap- prefix.
-    args : List[str], optional
-        Optional. A list of command-line arguments. If omitted, will be parsed from the
-        command line.
+#     Parameters
+#     ----------
+#     tap_alias : str
+#         The name of the tap to use, without the tap- prefix.
+#     target_alias : str, optional
+#         Optional. The name of the target to use, without the tap- prefix.
+#     args : List[str], optional
+#         Optional. A list of command-line arguments. If omitted, will be parsed from the
+#         command line.
 
-    Returns
-    -------
-    bool
-        True unless an error is raised.
-    """
-    if args is not None:
-        argstr = " ".join(args)
-    else:
-        argstr = " ".join(sys.argv[1:])
-    cmd = f"tapdance {argstr}"
-    env = {
-        k: v
-        for k, v in os.environ.items()
-        if (k.startswith("TAP_") or k.startswith("TARGET_"))
-    }
-    image_name = _get_docker_tap_image(tap_alias, target_alias)
-    try:
-        dock_r.pull(image_name)
-    except Exception as ex:
-        logging.warning(f"Could not pull docker image '{image_name}'. {ex}")
-    with logged_block(f"running dockerized command '{cmd}' on image '{image_name}'"):
+#     Returns
+#     -------
+#     bool
+#         True unless an error is raised.
+#     """
+#     if args is not None:
+#         argstr = " ".join(args)
+#     else:
+#         argstr = " ".join(sys.argv[1:])
+#     cmd = f"tapdance {argstr}"
+#     env = {
+#         k: v
+#         for k, v in os.environ.items()
+#         if (k.startswith("TAP_") or k.startswith("TARGET_"))
+#     }
+#     image_name = _get_docker_tap_image(tap_exe, target_exe)
+#     try:
+#         dock_r.pull(image_name)
+#     except Exception as ex:
+#         logging.warning(f"Could not pull docker image '{image_name}'. {ex}")
+#     with logged_block(f"running dockerized command '{cmd}' on image '{image_name}'"):
 
-        def _build_docker_run(image, command, environment, working_dir, volumes):
-            e_str = " ".join([f"-e {k}={v}" for k, v in environment.items()])
-            w_str = f"-w {working_dir}" if working_dir else ""
-            v_str = " ".join([f"-v {x}:{y}" for x, y in volumes.items()])
-            docker_run_cmd = f"docker run {e_str} {v_str} {w_str} {image} {command}"
-            return docker_run_cmd
+#         def _build_docker_run(image, command, environment, working_dir, volumes):
+#             e_str = " ".join([f"-e {k}={v}" for k, v in environment.items()])
+#             w_str = f"-w {working_dir}" if working_dir else ""
+#             v_str = " ".join([f"-v {x}:{y}" for x, y in volumes.items()])
+#             docker_run_cmd = f"docker run {e_str} {v_str} {w_str} {image} {command}"
+#             return docker_run_cmd
 
-        volumes = {os.path.abspath("."): "/projects/my-project"}
-        # DEV_DEBUG = False  # Used to test while developing, override python lib path
-        # if DEV_DEBUG:
-        #     container_lib = "/usr/local/lib/python3.8/site-packages/tapdance"
-        #     host_lib = "C:\\Files\\Source\\tapdance\\tapdance"
-        #     volumes[host_lib] = container_lib
-        docker_run_cmd = _build_docker_run(
-            image=image_name,
-            command=cmd,
-            environment=env,
-            working_dir="/projects/my-project",
-            volumes=volumes,
-        )
-        runnow.run(docker_run_cmd)
-    return True
+#         volumes = {os.path.abspath("."): "/projects/my-project"}
+#         # DEV_DEBUG = False  # Used to test while developing, override python lib path
+#         # if DEV_DEBUG:
+#         #     container_lib = "/usr/local/lib/python3.8/site-packages/tapdance"
+#         #     host_lib = "C:\\Files\\Source\\tapdance\\tapdance"
+#         #     volumes[host_lib] = container_lib
+#         docker_run_cmd = _build_docker_run(
+#             image=image_name,
+#             command=cmd,
+#             environment=env,
+#             working_dir="/projects/my-project",
+#             volumes=volumes,
+#         )
+#         runnow.run(docker_run_cmd)
+#     return True
 
 
-def _get_docker_tap_image(tap_alias, target_alias=None):
-    if tap_alias.startswith("tap-"):
-        tap_alias = tap_alias.replace("tap-", "")
-    if not target_alias:
+def _get_docker_tap_image(tap_exe=None, target_exe=None):
+    if not tap_exe and not target_exe:
+        raise ValueError("At least one value required of: tap_exe, target_exe")
+    if target_exe:
+        target_alias = target_exe.replace("target-", "")
+    if tap_exe:
+        tap_alias = tap_exe.replace("tap-", "")
+        if target_exe:
+            return f"{BASE_DOCKER_REPO}:{tap_alias}-to-{target_alias}"
         return f"{BASE_DOCKER_REPO}:tap-{tap_alias}"
-    if target_alias.startswith("target-"):
-        target_alias = target_alias.replace("target-", "")
-    return f"{BASE_DOCKER_REPO}:{tap_alias}-to-{target_alias}"
+    return f"{BASE_DOCKER_REPO}:target-{target_alias}"
 
 
 def _get_plugins_list(plugins_index=None):
@@ -110,7 +119,7 @@ def _get_plugins_list(plugins_index=None):
     plugins = taps + targets
     for plugin in plugins:
         list_of_tuples.append(
-            (plugin["name"], plugin.get("source", None), plugin.get("alias", None))
+            (plugin["name"], plugin.get("source", None), plugin.get("alias", None),)
         )
     return list_of_tuples
 
@@ -209,12 +218,17 @@ def _build_plugin_image(
     if pre:
         build_cmd += " --build-arg prerelease=true"
         image_name += "--pre"
+    if "Dockerfile" in source:
+        dockerfile = source
+    else:
+        dockerfile = "singer-plugin.Dockerfile"
+        build_cmd += f" --build-arg PLUGIN_SOURCE={source}"
+
     build_cmd += (
         f" --build-arg PLUGIN_NAME={plugin_name}"
-        f" --build-arg PLUGIN_SOURCE={source}"
         f" --build-arg PLUGIN_ALIAS={alias}"
         f" -t {image_name}"
-        f" -f singer-plugin.Dockerfile"
+        f" -f {dockerfile}"
         f" ."
     )
     runnow.run(build_cmd)
@@ -224,14 +238,29 @@ def _build_plugin_image(
 
 
 def _build_composite_image(
-    tap_alias, target_alias, push=False, pre=False, ignore_cache=False
+    tap_alias,
+    target_alias,
+    push: bool = False,
+    pre: bool = False,
+    ignore_cache: bool = False,
+    has_custom_tap: bool = False,
+    has_custom_target: bool = False,
 ):
+    if has_custom_tap and has_custom_target:
+        raise NotImplementedError(
+            "Cannot combine a custom tap ('tap-{tap_alias}') "
+            "with a custom target '{target_alias}'."
+        )
     if tap_alias.startswith("tap-"):
         tap_alias = tap_alias.replace("tap-", "", 1)
     if target_alias.startswith("target-"):
         target_alias = target_alias.replace("target-", "", 1)
     image_name = f"{BASE_DOCKER_REPO}:{tap_alias}-to-{target_alias}"
     build_cmd = "docker build"
+    if has_custom_tap:
+        dockerfile = "tap-to-target-w-custom-tap.Dockerfile"
+    else:
+        dockerfile = "tap-to-target.Dockerfile"
     if ignore_cache:
         build_cmd += " --no-cache"
     if pre:
@@ -241,7 +270,7 @@ def _build_composite_image(
         f" --build-arg tap_alias={tap_alias}"
         f" --build-arg target_alias={target_alias}"
         f" -t {image_name}"
-        f" -f tap-to-target.Dockerfile"
+        f" -f {dockerfile}"
         f" ."
     )
     runnow.run(build_cmd)
@@ -274,12 +303,25 @@ def build_image(
         pre {bool} -- True to use and create prelease versions. (default: {False})
         ignore_cache {bool} -- True to build images without cached image layers. (default: {False})
     """
-    name, source, alias = _get_plugin_info(f"tap-{tap_or_plugin_alias}")
-    _build_plugin_image(
-        name, source=source, alias=alias, push=push, pre=pre, ignore_cache=ignore_cache
-    )
-    if target_alias:
-        name, source, alias = _get_plugin_info(f"target-{target_alias}")
+    has_custom_tap = uio.file_exists(f"./tap-{tap_or_plugin_alias}.Dockerfile")
+    has_custom_target = uio.file_exists(f"./target-{target_alias}.Dockerfile")
+    if has_custom_tap and has_custom_target:
+        raise NotImplementedError(
+            "Cannot combine a custom tap ('tap-{tap_or_plugin_alias}') "
+            "with a custom target '{target_alias}'."
+        )
+    if has_custom_tap:
+        logging.info(f"Using custom Dockerfile for tap-{tap_or_plugin_alias}")
+        _build_plugin_image(
+            f"tap-{tap_or_plugin_alias}",
+            source=f"./tap-{tap_or_plugin_alias}.Dockerfile",
+            alias=f"tap-{tap_or_plugin_alias}",
+            push=push,
+            pre=pre,
+            ignore_cache=ignore_cache,
+        )
+    else:
+        name, source, alias = _get_plugin_info(f"tap-{tap_or_plugin_alias}")
         _build_plugin_image(
             name,
             source=source,
@@ -288,12 +330,35 @@ def build_image(
             pre=pre,
             ignore_cache=ignore_cache,
         )
+    if target_alias:
+        if has_custom_target:
+            logging.info(f"Using custom Dockerfile for target-{target_alias}")
+            _build_plugin_image(
+                f"target-{target_alias}",
+                source=f"./target-{target_alias}.Dockerfile",
+                alias=f"target-{target_alias}",
+                push=push,
+                pre=pre,
+                ignore_cache=ignore_cache,
+            )
+        else:
+            name, source, alias = _get_plugin_info(f"target-{target_alias}")
+            _build_plugin_image(
+                name,
+                source=source,
+                alias=alias,
+                push=push,
+                pre=pre,
+                ignore_cache=ignore_cache,
+            )
         _build_composite_image(
             tap_alias=tap_or_plugin_alias,
             target_alias=target_alias,
             push=push,
             pre=pre,
             ignore_cache=ignore_cache,
+            has_custom_tap=has_custom_tap,
+            has_custom_target=has_custom_target,
         )
 
 

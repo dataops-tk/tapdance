@@ -20,10 +20,28 @@ USE_2PART_RULES = True
 
 
 @logged("running discovery on '{tap_name}'")
-def _discover(tap_name: str, config_file: str, catalog_dir: str):
-    catalog_file = f"{catalog_dir}/{tap_name}-catalog-raw.json"
+def _discover(
+    tap_name: str,
+    *,
+    config_file: str,
+    catalog_dir: str,
+    dockerized: bool,
+    tap_exe: str,
+):
+    catalog_file = f"{catalog_dir}/{tap_name}-catalog-raw.json".replace("\\", "/")
     uio.create_folder(catalog_dir)
-    runnow.run(f"tap-{tap_name} --config {config_file} --discover > {catalog_file}")
+    img = f"{docker.BASE_DOCKER_REPO}:{tap_exe}"
+    if dockerized:
+        cdw = os.getcwd().replace("\\", "/")
+        config_file = os.path.relpath(config_file).replace("\\", "/")
+        config_file = f"/home/local/{config_file}"
+        runnow.run(
+            f"docker run --rm -it "
+            f"-v {cdw}:/home/local "
+            f"{img} --config {config_file} --discover"  # > {catalog_file}" # TK - TODO: << Fix this
+        )
+    else:
+        runnow.run(f"{tap_exe} --config {config_file} --discover > {catalog_file}")
 
 
 def _check_rules(
@@ -61,6 +79,8 @@ def plan(
     config_dir: str = None,
     config_file: str = None,
     dockerized: bool = None,
+    tap_exe: str = None,
+    target_exe: str = None,
 ):
     """
     Perform all actions necessary to prepare (plan) for a tap execution.
@@ -87,24 +107,27 @@ def plan(
         dockerized {bool} -- Optional. If specified, will override the default behavior for
         the local platform.
     """
+    if not tap_exe:
+        tap_exe = f"tap-{tap_name}"
     if (dockerized is None) and (uio.is_windows() or uio.is_mac()):
         dockerized = True
         logging.info(
-            "The 'dockerized' argument is not set when running either Windows or OSX."
-            "Attempting to run sync from inside docker."
+            "The 'dockerized' argument is not set when running either Windows or OSX. "
+            "Defaulting to dockerized=True..."
         )
-    if dockerized:
-        args = ["plan", tap_name]
-        for var in [
-            "rescan",
-            "taps_dir",
-            "config_dir",
-            "config_file",
-        ]:
-            if var in locals() and locals()[var]:
-                args.append(f"--{var}={locals()[var]}")
-        docker.rerun_dockerized(tap_name, args=args)
-        return
+    # Deprecated in favor of partial dockerization:
+    # if dockerized:
+    #     args = ["plan", tap_name]
+    #     for var in [
+    #         "rescan",
+    #         "taps_dir",
+    #         "config_dir",
+    #         "config_file",
+    #     ]:
+    #         if var in locals() and locals()[var]:
+    #             args.append(f"--{var}={locals()[var]}")
+    #     docker.rerun_dockerized(tap_name, args=args)
+    #     return
 
     # Initialize paths
     taps_dir = config.get_taps_dir(taps_dir)
@@ -123,7 +146,7 @@ def plan(
     catalog_dir = config.get_catalog_output_dir(tap_name)
     catalog_file = f"{catalog_dir}/{tap_name}-catalog-raw.json"
     selected_catalog_file = f"{catalog_dir}/{tap_name}-catalog-selected.json"
-    plan_file = config.get_plan_file(tap_name, taps_dir)
+    plan_file = config.get_plan_file(tap_name, taps_dir, required=False)
     if (
         uio.file_exists(catalog_file)
         and uio.get_text_file_contents(catalog_file).strip() == ""
@@ -133,7 +156,13 @@ def plan(
 
     if rescan or not uio.file_exists(catalog_file):
         # Run discover, if needed, to get catalog.json (raw)
-        _discover(tap_name, config_file, catalog_dir)
+        _discover(
+            tap_name,
+            config_file=config_file,
+            catalog_dir=catalog_dir,
+            dockerized=dockerized,
+            tap_exe=tap_exe,
+        )
 
     rules_file = config.get_rules_file(taps_dir, tap_name)
     matches, excluded_tables = _check_rules(
