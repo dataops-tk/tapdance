@@ -25,13 +25,13 @@ RUN if [ "${prerelease}" = "false" ]; then \
     pip install --upgrade --pre tapdance; \
     fi
 
-RUN echo "#!/bin/bash" > tap-mssql && \
-    echo "cd /venv/tap-mssql" >> tap-mssql && \
-    echo "bin/tap-mssql \"$@\"" >> tap-mssql
+# RUN echo "#!/bin/bash" > tap-mssql && \
+#     echo "cd /venv/tap-mssql" >> tap-mssql && \
+#     echo "bin/tap-mssql \"$@\"" >> tap-mssql
 
-ENV PATH "/venv/tap-mssql:${PATH}"
+ENV PATH "/venv/tap-mssql/bin:${PATH}"
 
-RUN chmod 770 ./tap-mssql
-RUN ./tap-mssql
+# RUN chmod 770 ./tap-mssql
+RUN tap-mssql
 
 ENTRYPOINT [ "tap-mssql" ]

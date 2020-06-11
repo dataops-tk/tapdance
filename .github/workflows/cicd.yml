@@ -61,7 +61,7 @@ jobs:
         uses: actions/setup-python@v1
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Push to PyPi (https://pypi.org/project/tapdance/)
+      - name: Push to PyPi (https://pypi.org/project/tapdance/)  (build number ${{ github.run_number }})
         env:
           BRANCH_NAME: ${{ github.ref }}
           PYPI_USER: ${{ secrets.PYPI_USER }}
@@ -110,7 +110,7 @@ jobs:
         run: python3 setup.py install
       - name: Login to docker
         run: docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_SECRET }}
-      - name: Build and push all *prioritized* pre-release singer images
+      - name: Build and push all *prioritized* pre-release singer images (build number ${{ github.run_number }})
         run: |
           cd docker
           tapdance build_image mssql snowflake-test --pre --push
