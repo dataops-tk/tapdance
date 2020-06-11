@@ -71,7 +71,7 @@ def sync(
         tap_exe = os.environ.get(f"TAP_{tap_name.upper()}_EXE", f"tap-{tap_name}")
     if not target_exe:
         target_exe = os.environ.get(
-            f"TAP_{target_name.upper()}_EXE", f"target-{target_name}"
+            f"TARGET_{target_name.upper()}_EXE", f"target-{target_name}"
         )
     if (dockerized is None) and (uio.is_windows() or uio.is_mac()):
         dockerized = True

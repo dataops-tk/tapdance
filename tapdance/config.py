@@ -62,7 +62,7 @@ def get_config_file(
     # Parse settings and secrets from environment variables
     for k, v in os.environ.items():
         prefix = f"{plugin_name.replace('-', '_').upper()}_"
-        if k.startswith(prefix):
+        if k.startswith(prefix) and not k.endswith("_EXE"):
             logging.info(f"Parsing env variable '{k}' for '{plugin_name}'...")
             setting_name = k.split(prefix)[1]
             conf_dict[setting_name] = v
