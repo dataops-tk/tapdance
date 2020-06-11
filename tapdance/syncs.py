@@ -67,8 +67,8 @@ def sync(
         exclude_table_names {List(str)} -- Optional. A list of tables to exclude. Ignored
         if table_name arg is not "*".
     """
-    tap_exe = tap_exe or config.get_exe("tap-{tap_name}")
-    target_exe = target_exe or config.get_exe("target-{target_name}")
+    tap_exe = tap_exe or config.get_exe(f"tap-{tap_name}")
+    target_exe = target_exe or config.get_exe(f"target-{target_name}")
     if (dockerized is None) and (uio.is_windows() or uio.is_mac()):
         dockerized = True
         logging.info(
