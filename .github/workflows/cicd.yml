@@ -114,7 +114,7 @@ jobs:
         run: |
           cd docker
           tapdance build_image mssql snowflake-test --pre --push
-          tapdance build_image mssql snowflake --pre --push
+        # tapdance build_image mssql snowflake --pre --push
         # tapdance build_image pardot snowflake-test --pre --push
         # tapdance build_image salesforce snowflake-test --pre --push
         # tapdance build_image salesforce s3-csv --pre --push
