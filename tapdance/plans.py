@@ -108,7 +108,7 @@ def plan(
         the local platform.
     """
     if not tap_exe:
-        tap_exe = f"tap-{tap_name}"
+        tap_exe = os.environ.get(f"TAP_{tap_name.upper()}_EXE", f"tap-{tap_name}")
     if (dockerized is None) and (uio.is_windows() or uio.is_mac()):
         dockerized = True
         logging.info(

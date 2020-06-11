@@ -68,9 +68,11 @@ def sync(
         if table_name arg is not "*".
     """
     if not tap_exe:
-        tap_exe = f"tap-{tap_name}"
+        tap_exe = os.environ.get(f"TAP_{tap_name.upper()}_EXE", f"tap-{tap_name}")
     if not target_exe:
-        target_exe = f"target-{target_name}"
+        target_exe = os.environ.get(
+            f"TAP_{target_name.upper()}_EXE", f"target-{target_name}"
+        )
     if (dockerized is None) and (uio.is_windows() or uio.is_mac()):
         dockerized = True
         logging.info(
