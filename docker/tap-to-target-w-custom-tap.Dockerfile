@@ -8,8 +8,8 @@ ARG tap_alias
 ARG target_alias
 ARG source_image_suffix
 
-RUN echo "Building from *custom* source tap image:  dataopstk/tapdance:${tap_alias}${source_image_suffix}"
-RUN echo "Building from source target image:  dataopstk/tapdance:${target_alias}${source_image_suffix}"
+RUN echo "Building from *custom* source tap image:  dataopstk/tapdance:tap-${tap_alias}${source_image_suffix}"
+RUN echo "Building from source target image:  dataopstk/tapdance:target-${target_alias}${source_image_suffix}"
 
 FROM dataopstk/tapdance:tap-${tap_alias}${source_image_suffix} as tap
 

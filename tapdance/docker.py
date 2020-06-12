@@ -186,15 +186,30 @@ def _build_all_composite(
         for target_name, target_source, target_alias in plugins:
             target_alias = target_alias or target_name
             if tap_alias.startswith("tap-") and target_alias.startswith("target-"):
-                created_images.append(
-                    _build_composite_image(
-                        tap_alias,
-                        target_alias,
-                        push=push,
-                        pre=pre,
-                        ignore_cache=ignore_cache,
-                    )
+                has_custom_tap = (tap_source is not None) and (
+                    "Dockerfile" in tap_source
                 )
+                has_custom_target = (target_source is not None) and (
+                    "Dockerfile" in target_source
+                )
+                if has_custom_tap and has_custom_target:
+                    logging.warning(
+                        f"The '{tap_name}' tap is not compatible with "
+                        f"'{target_name}' target because both require custom Dockerfiles. "
+                        "Skipping..."
+                    )
+                else:
+                    created_images.append(
+                        _build_composite_image(
+                            tap_alias,
+                            target_alias,
+                            push=push,
+                            pre=pre,
+                            ignore_cache=ignore_cache,
+                            has_custom_tap=has_custom_tap,
+                            has_custom_target=has_custom_target,
+                        )
+                    )
     return created_images
 
 
@@ -240,11 +255,12 @@ def _build_plugin_image(
 def _build_composite_image(
     tap_alias,
     target_alias,
+    *,
     push: bool = False,
     pre: bool = False,
     ignore_cache: bool = False,
-    has_custom_tap: bool = False,
-    has_custom_target: bool = False,
+    has_custom_tap: bool,
+    has_custom_target: bool,
 ):
     if has_custom_tap and has_custom_target:
         raise NotImplementedError(
@@ -322,6 +338,8 @@ def build_image(
         )
     else:
         name, source, alias = _get_plugin_info(f"tap-{tap_or_plugin_alias}")
+        if "Dockerfile" in source:
+            has_custom_tap = True
         _build_plugin_image(
             name,
             source=source,
@@ -343,6 +361,8 @@ def build_image(
             )
         else:
             name, source, alias = _get_plugin_info(f"target-{target_alias}")
+            if "Dockerfile" in source:
+                has_custom_target = True
             _build_plugin_image(
                 name,
                 source=source,

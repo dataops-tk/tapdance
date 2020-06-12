@@ -62,7 +62,7 @@ def get_config_file(
     # Parse settings and secrets from environment variables
     for k, v in os.environ.items():
         prefix = f"{plugin_name.replace('-', '_').upper()}_"
-        if k.startswith(prefix):
+        if k.startswith(prefix) and not k.endswith("_EXE"):
             logging.info(f"Parsing env variable '{k}' for '{plugin_name}'...")
             setting_name = k.split(prefix)[1]
             conf_dict[setting_name] = v
@@ -83,6 +83,29 @@ def get_config_file(
 
 def get_pipeline_version_number():
     return os.environ.get(ENV_PIPELINE_VERSION_NUMBER, "1")
+
+
+def get_exe(tap_or_target_id: str) -> str:
+    """Gets the exe for the tap or target.
+
+    Parameters
+    ----------
+    tap_or_target_id : str
+        The tap or target ID, including the tap-/target- prefix.
+
+    Returns
+    -------
+    str
+        The exe to use.
+    """
+    env_var = f"{tap_or_target_id.upper().replace('-', '_')}_EXE"
+    if env_var in os.environ:
+        result = os.environ[env_var]
+        logging.info(f"Found exe '{result}' for '{tap_or_target_id}' in env variable.")
+    else:
+        result = tap_or_target_id
+        logging.info(f"Defaulting to exe='{tap_or_target_id}' from tap name.")
+    return result
 
 
 def get_state_file_path(required: bool = True) -> Optional[str]:

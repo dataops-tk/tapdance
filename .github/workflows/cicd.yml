@@ -61,7 +61,7 @@ jobs:
         uses: actions/setup-python@v1
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Push to PyPi (https://pypi.org/project/tapdance/)
+      - name: Push to PyPi (https://pypi.org/project/tapdance/)  (build number ${{ github.run_number }})
         env:
           BRANCH_NAME: ${{ github.ref }}
           PYPI_USER: ${{ secrets.PYPI_USER }}
@@ -95,20 +95,6 @@ jobs:
           export PIPERR=$(pip install tapdance==versioncheck 2>&1)
           if [[ $PIPERR == *"$VER"* ]]; then { echo "Yes"; } else { echo "Not found. Giving up. Last message from PyPi was $PIPERR"; exit 1; } fi;
 
-      # - name: Sleep before install
-      #   run: |
-      #     sleep 60
-      # - name: Test install (pip install tapdance)
-      #   run: |
-      #     pip install --no-cache-dir tapdance==$(cat VERSION) --pre
-      # - name: Test CLI shortcuts
-      #   run: |
-      #     set -v
-      #     tapdance -- --help
-      # - name: Test uninstall (pip uninstall tapdance)
-      #   run: |
-      #     pip uninstall -y tapdance
-
   docker_builds:
     runs-on: ubuntu-latest
     needs:
@@ -124,11 +110,13 @@ jobs:
         run: python3 setup.py install
       - name: Login to docker
         run: docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_SECRET }}
-      - name: Build and push all *prioritized* pre-release singer images
+      - name: Build and push all *prioritized* pre-release singer images (build number ${{ github.run_number }})
         run: |
           cd docker
-          tapdance build_image pardot snowflake-test --pre --push
-          tapdance build_image salesforce snowflake-test --pre --push
+          tapdance build_image mssql snowflake-test --pre --push
+        # tapdance build_image mssql snowflake --pre --push
+        # tapdance build_image pardot snowflake-test --pre --push
+        # tapdance build_image salesforce snowflake-test --pre --push
         # tapdance build_image salesforce s3-csv --pre --push
         # tapdance build_image covid-19 s3-csv --pre --push
         # tapdance build_image covid-19 redshift --pre --push
