@@ -189,7 +189,7 @@ def _build_all_composite(
                 has_custom_tap = (tap_source is not None) and (
                     "Dockerfile" in tap_source
                 )
-                has_custom_target = (tap_source is not None) and (
+                has_custom_target = (target_source is not None) and (
                     "Dockerfile" in target_source
                 )
                 if has_custom_tap and has_custom_target:
