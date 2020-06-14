@@ -81,6 +81,7 @@ def plan(
     dockerized: bool = None,
     tap_exe: str = None,
     target_exe: str = None,
+    replication_strategy: str = "INCREMENTAL",
 ):
     """
     Perform all actions necessary to prepare (plan) for a tap execution.
@@ -107,6 +108,11 @@ def plan(
         dockerized {bool} -- Optional. If specified, will override the default behavior for
         the local platform.
     """
+    if replication_strategy not in ["FULL_TABLE", "INCREMENTAL", "LOG_BASED"]:
+        raise ValueError(
+            f"Replication strategy {replication_strategy} not supported. Expected: "
+            "FULL_TABLE, INCREMENTAL, or LOG_BASED"
+        )
     tap_exe = tap_exe or config.get_exe(f"tap-{tap_name}")
     if (dockerized is None) and (uio.is_windows() or uio.is_mac()):
         dockerized = True
@@ -176,6 +182,7 @@ def plan(
         plan_file=plan_file,
         full_catalog_file=catalog_file,
         output_file=selected_catalog_file,
+        replication_strategy=replication_strategy,
     )
 
 
@@ -219,7 +226,11 @@ def _get_catalog_tables_dict(catalog_file: str) -> dict:
     "from '{tap_name}' source catalog file: {full_catalog_file}"
 )
 def _create_selected_catalog(
-    tap_name, plan_file=None, full_catalog_file=None, output_file=None
+    tap_name: str,
+    plan_file: str,
+    full_catalog_file: str,
+    output_file: str,
+    replication_strategy: str,
 ):
     catalog_dir = config.get_catalog_output_dir(tap_name)
     source_catalog_path = full_catalog_file or os.path.join(
@@ -235,7 +246,7 @@ def _create_selected_catalog(
     for tbl in catalog_full["streams"]:
         stream_name = tbl["stream"]
         if stream_name in plan["selected_tables"].keys():
-            _select_table(tbl)
+            _select_table(tbl, replication_strategy=replication_strategy)
             for col_name in _get_catalog_table_columns(tbl):
                 col_selected = (
                     col_name in plan["selected_tables"][stream_name]["selected_columns"]
@@ -247,10 +258,17 @@ def _create_selected_catalog(
         json.dump(catalog_new, f, indent=2)
 
 
-def _select_table(tbl: dict):
+def _select_table(tbl: dict, replication_strategy: str):
     for metadata in tbl["metadata"]:
         if len(metadata["breadcrumb"]) == 0:
             metadata["metadata"]["selected"] = True
+            if "replication-method" not in metadata["metadata"]:
+                if replication_strategy in ["LOG_BASED", "FULL_TABLE"]:
+                    metadata["metadata"]["replication-method"] = replication_strategy
+                elif "replication-key" in metadata["metadata"]:
+                    metadata["metadata"]["replication-method"] = "INCREMENTAL"
+                else:
+                    metadata["metadata"]["replication-method"] = "FULL_TABLE"
 
 
 def _select_table_column(tbl: dict, col_name: str, selected: bool):
