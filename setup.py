@@ -58,7 +58,7 @@ setup(
         "fire",
         "logless",
         "pyyaml",
-        "runnow>=0.1.0.12,<0.2",
+        "runnow<0.2.0,>=0.1.0.14",
         "uio",
         "importlib-metadata",  # required for python versions < 3.8
     ],
