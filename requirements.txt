@@ -3,7 +3,7 @@ dock-r
 fire
 logless
 pyyaml
-runnow
+runnow>=0.1.0.12,<0.2
 uio
 
 # For python versions prior to 3.8:
