@@ -229,17 +229,18 @@ def _sync_one_table(
     tap_args = f"--config {config_file} --catalog {table_catalog_file}"
     if uio.file_exists(table_state_file):
         if uio.is_local(table_state_file):
-            local_state_file = table_state_file
+            local_state_file_in = table_state_file
         else:
-            local_state_file = os.path.join(
+            local_state_file_in = os.path.join(
                 uio.get_scratch_dir(), os.path.basename(table_state_file)
             )
-            uio.download_file(table_state_file, local_state_file)
-        tap_args += f" --state {local_state_file}"
+            uio.download_file(table_state_file, local_state_file_in)
+        tap_args += f" --state {local_state_file_in}"
     else:
-        local_state_file = os.path.join(
+        local_state_file_in = os.path.join(
             uio.get_temp_dir(), f"{tap_name}-{table_name}-state.json"
         )
+    local_state_file_out = f"{'.'.join(local_state_file_in.split('.')[:-1])}-new.json"
     tmp_target_config = config.get_single_table_target_config_file(
         target_name,
         target_config_file,
@@ -259,7 +260,7 @@ def _sync_one_table(
             f"docker run --rm -it -v {cdw}:/home/local {target_image_name} "
             f"{_dockerize_cli_args(target_args)} "
             ">> "
-            f"{local_state_file}"
+            f"{local_state_file_out}"
         )
     else:
         sync_cmd = (
@@ -268,16 +269,14 @@ def _sync_one_table(
             "| "
             f"{target_exe} "
             f"{target_args} "
-            ">> "
-            f"{local_state_file}"
+            "> "
+            f"{local_state_file_out}"
         )
     runnow.run(sync_cmd)
-    # TODO: decide whether trimming to only the final line is necessary
-    # tail -1 state.json > state.json.tmp && mv state.json.tmp state.json
-    if not uio.file_exists(local_state_file):
+    if not uio.file_exists(local_state_file_out):
         logging.warning(
-            f"State file does not exist at path '{local_state_file}'. Skipping upload. "
+            f"State file does not exist at path '{local_state_file_out}'. Skipping upload. "
             f"This can be caused by having no data, or no new data, in the source table."
         )
-    elif local_state_file != table_state_file:
-        uio.upload_file(local_state_file, table_state_file)
+    else:
+        uio.upload_file(local_state_file_out, table_state_file)
