@@ -17,6 +17,12 @@ from tapdance import docker, config
 logging = get_logger("tapdance")
 
 USE_2PART_RULES = True
+SKIP_SENSELESS_VALIDATORS = (
+    True
+    # Ignore senseless schema validation rules, e.g. 'multipleOf', etc.
+    # These only fail when our source is internally incoherent, which alone
+    # is almost never sufficient cause for failing the data extraction.
+)
 
 
 @logged("running discovery on '{tap_name}'")
@@ -183,6 +189,7 @@ def plan(
         full_catalog_file=catalog_file,
         output_file=selected_catalog_file,
         replication_strategy=replication_strategy,
+        skip_senseless_validators=SKIP_SENSELESS_VALIDATORS,
     )
 
 
@@ -231,6 +238,7 @@ def _create_selected_catalog(
     full_catalog_file: str,
     output_file: str,
     replication_strategy: str,
+    skip_senseless_validators: bool,
 ):
     catalog_dir = config.get_catalog_output_dir(tap_name)
     source_catalog_path = full_catalog_file or os.path.join(
@@ -252,6 +260,8 @@ def _create_selected_catalog(
                     col_name in plan["selected_tables"][stream_name]["selected_columns"]
                 )
                 _select_table_column(tbl, col_name, col_selected)
+            if skip_senseless_validators:
+                _remove_senseless_validators(tbl)
             included_table_objects.append(tbl)
     catalog_new = {"streams": included_table_objects}
     with open(output_file, "w") as f:
@@ -269,6 +279,21 @@ def _select_table(tbl: dict, replication_strategy: str):
                     metadata["metadata"]["replication-method"] = "INCREMENTAL"
                 else:
                     metadata["metadata"]["replication-method"] = "FULL_TABLE"
+
+
+def _remove_senseless_validators(tbl: dict):
+    for col, props in tbl["schema"]["properties"].items():
+        for senseless in [
+            "multipleOf",
+            "minimum",
+            "maximum",
+            "exclusiveMinimum",
+            "exclusiveMaximum",
+            "maxLength",
+        ]:
+            if senseless in props:
+                props.pop(senseless)
+    return
 
 
 def _select_table_column(tbl: dict, col_name: str, selected: bool):
