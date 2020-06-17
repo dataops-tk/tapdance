@@ -3,6 +3,7 @@
 import os
 from typing import List
 
+import json
 import uio
 import runnow
 from logless import get_logger, logged
@@ -235,7 +236,18 @@ def _sync_one_table(
                 uio.get_scratch_dir(), os.path.basename(table_state_file)
             )
             uio.download_file(table_state_file, local_state_file_in)
-        tap_args += f" --state {local_state_file_in}"
+        state_file_text = uio.get_text_file_contents(local_state_file_in)
+        if state_file_text == "":
+            logging.warning(f"Ignoring blank state file from '{table_state_file}'.")
+        else:
+            try:
+                _ = json.loads(state_file_text)
+            except ValueError as ex:
+                raise ValueError(
+                    f"State file from '{table_state_file} ' is not valid JSON. "
+                    f"Please either delete or fix the file and then retry. {ex}"
+                )
+            tap_args += f" --state {local_state_file_in}"
     else:
         local_state_file_in = os.path.join(
             uio.get_temp_dir(), f"{tap_name}-{table_name}-state.json"
