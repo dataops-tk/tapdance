@@ -9,6 +9,12 @@ DETECTED_VERSION = None
 VERSION_FILEPATH = "VERSION"
 
 
+def _get_requires_list():
+    with open("requirements.txt") as fp:
+        deps = fp.read().splitlines()
+    return [dep.split("#")[0].rstrip() for dep in deps if dep.split("#")[0].rstrip()]
+
+
 def _get_build_number():
     return os.environ.get("BUILD_NUMBER", os.environ.get("GITHUB_RUN_NUMBER", None))
 
@@ -52,16 +58,7 @@ setup(
         ]
     },
     include_package_data=True,
-    install_requires=[
-        "docker",
-        "dock-r",
-        "fire",
-        "logless",
-        "pyyaml",
-        "runnow",
-        "uio",
-        "importlib-metadata",  # required for python versions < 3.8
-    ],
+    install_requires=_get_requires_list(),
     extras_require={
         "AWS": ["boto3", "s3fs"],
         "Azure": ["azure-storage-blob", "azure-storage-file-datalake"],
