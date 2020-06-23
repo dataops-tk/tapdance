@@ -29,7 +29,8 @@ ENV_TAP_STATE_FILE = "TAP_STATE_FILE"
 
 @logged(
     "getting '{plugin_name}' config file using: config_dir={config_dir}, "
-    "config_file={config_file}, required={required}"
+    "config_file={config_file}, required={required}",
+    log_fn=logging.debug,
 )
 def get_config_file(
     plugin_name: str,
@@ -63,7 +64,7 @@ def get_config_file(
     for k, v in os.environ.items():
         prefix = f"{plugin_name.replace('-', '_').upper()}_"
         if k.startswith(prefix) and not k.endswith("_EXE"):
-            logging.info(f"Parsing env variable '{k}' for '{plugin_name}'...")
+            logging.debug(f"Parsing env variable '{k}' for '{plugin_name}'...")
             setting_name = k.split(prefix)[1]
             conf_dict[setting_name] = v
             use_tmp_file = True
