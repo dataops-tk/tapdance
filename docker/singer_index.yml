@@ -19,6 +19,7 @@ singer-taps:
   - { name: tap-salesforce, source: "git+https://gitlab.com/meltano/tap-salesforce.git@master" }
   - { name: tap-salesforce, alias: tap-salesforce-singer }
   - { name: tap-salesforce, alias: tap-salesforce-pw, source: pipelinewise-tap-salesforce }
+  - { name: tap-sftp }
   - { name: tap-snowflake, source: pipelinewise-tap-snowflake }
   - { name: tap-zendesk }
 
