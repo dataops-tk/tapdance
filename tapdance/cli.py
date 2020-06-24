@@ -30,8 +30,10 @@ def print_version():
     except ImportError:
         # Running on pre-3.8 Python; use importlib-metadata package
         import importlib_metadata as metadata
-
-    version = metadata.version("tapdance")
+    try:
+        version = metadata.version("tapdance")
+    except metadata.PackageNotFoundError:
+        version = "[could not be detected]"
     print(f"tapdance version {version}")
 
 

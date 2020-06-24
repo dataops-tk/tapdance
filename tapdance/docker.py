@@ -338,7 +338,7 @@ def build_image(
         )
     else:
         name, source, alias = _get_plugin_info(f"tap-{tap_or_plugin_alias}")
-        if "Dockerfile" in source:
+        if source and "Dockerfile" in source:
             has_custom_tap = True
         _build_plugin_image(
             name,
