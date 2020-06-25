@@ -108,9 +108,12 @@ jobs:
           else
             echo "::set-env name=PRE_FLAG::--pre"
           fi
-      - name: Echo prerelease flag
+      - name: Print version, branch, and prerelease flag
         run: |
-          echo "PRE_FLAG=$PRE_FLAG"
+          echo "Build Number: $GITHUB_RUN_NUMBER"
+          echo "Version:      $(cat VERSION).$GITHUB_RUN_NUMBER"
+          echo "Branch Name:  ${{ github.ref }}"
+          echo "PRE_FLAG:     $PRE_FLAG"
       - name: Clone git repo
         uses: actions/checkout@v1
       - name: Set up Python 3.7
@@ -121,7 +124,7 @@ jobs:
         run: python3 setup.py install
       - name: Login to docker
         run: docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_SECRET }}
-      - name: Build and push all *prioritized* pre-release singer images (build number ${{ github.run_number }})
+      - name: Build and push all *prioritized* singer images (build number ${{ github.run_number }})
         run: |
           cd docker
           tapdance build_image mssql snowflake-test --push $PRE_FLAG
