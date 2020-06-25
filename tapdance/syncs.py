@@ -211,7 +211,7 @@ def _is_valid_json(json_text):
         _ = json.loads(json_text)
     except ValueError:
         return False
-    True
+    return True
 
 
 def _sync_one_table(
@@ -249,7 +249,7 @@ def _sync_one_table(
             logging.warning(f"Ignoring blank state file from '{table_state_file}'.")
         else:
             if _is_valid_json(state_file_text):
-                _ = json.loads(state_file_text)
+                pass
             elif _is_valid_json(state_file_text.splitlines()[-1]):
                 logging.warning(
                     "State file contains multiple states. Using final line of JSON state: "
