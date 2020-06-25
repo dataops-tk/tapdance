@@ -66,7 +66,15 @@ def get_config_file(
         if k.startswith(prefix) and not k.endswith("_EXE"):
             logging.debug(f"Parsing env variable '{k}' for '{plugin_name}'...")
             setting_name = k.split(prefix)[1]
-            conf_dict[setting_name] = v
+            # Ensure truthinesss and falseness are maintained
+            if str(v).lower() == "false":
+                conf_dict[setting_name] = False
+            elif str(v).lower() == "true":
+                conf_dict[setting_name] = True
+            elif str(v) == "0":
+                conf_dict[setting_name] = 0
+            else:
+                conf_dict[setting_name] = v
             use_tmp_file = True
     if "-".join(plugin_name.split("-")[1:]).upper() in S3_TARGET_IDS:
         conf_dict = _inject_s3_config_creds(plugin_name, conf_dict)
