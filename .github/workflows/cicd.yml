@@ -69,6 +69,9 @@ jobs:
           else
             echo "::set-env name=PRE_FLAG::--pre"
           fi
+      - name: Echo prerelease flag
+        run: |
+          echo "PRE_FLAG=$PRE_FLAG"
       - name: Push to PyPi (https://pypi.org/project/tapdance/)  (build number ${{ github.run_number }})
         env:
           BRANCH_NAME: ${{ github.ref }}
