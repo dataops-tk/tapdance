@@ -252,18 +252,19 @@ def get_single_table_target_config_file(
 def replace_placeholders(config_dict, tap_name, table_name, pipeline_version_num):
     new_config = config_dict.copy()
     for setting_name in new_config.keys():
-        for param, replacement_value in {
-            "tap": tap_name,
-            "table": table_name,
-            "version": pipeline_version_num,
-        }.items():
-            search_key = "{" + f"{param}" + "}"
-            if search_key in new_config[setting_name]:
-                logging.info(
-                    f"Modifying '{setting_name}' setting value, "
-                    f"replacing '{search_key}' placeholder with '{replacement_value}'."
-                )
-                new_config[setting_name] = new_config[setting_name].replace(
-                    search_key, replacement_value
-                )
+        if isinstance(new_config[setting_name], str):
+            for param, replacement_value in {
+                "tap": tap_name,
+                "table": table_name,
+                "version": pipeline_version_num,
+            }.items():
+                search_key = "{" + f"{param}" + "}"
+                if search_key in new_config[setting_name]:
+                    logging.info(
+                        f"Modifying '{setting_name}' setting value, "
+                        f"replacing '{search_key}' placeholder with '{replacement_value}'."
+                    )
+                    new_config[setting_name] = new_config[setting_name].replace(
+                        search_key, replacement_value
+                    )
     return new_config
