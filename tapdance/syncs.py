@@ -206,6 +206,14 @@ def _dockerize_cli_args(arg_str: str, container_volume_root="/home/local") -> st
     return " ".join(newargs)
 
 
+def _is_valid_json(json_text):
+    try:
+        _ = json.loads(json_text)
+    except ValueError:
+        return False
+    True
+
+
 def _sync_one_table(
     tap_name: str,
     table_name: str,
@@ -240,12 +248,20 @@ def _sync_one_table(
         if state_file_text == "":
             logging.warning(f"Ignoring blank state file from '{table_state_file}'.")
         else:
-            try:
+            if _is_valid_json(state_file_text):
                 _ = json.loads(state_file_text)
-            except ValueError as ex:
+            elif _is_valid_json(state_file_text.splitlines()[-1]):
+                logging.warning(
+                    "State file contains multiple states. Using final line of state file: "
+                    + state_file_text.replace("\n", "\\n")
+                )
+                uio.create_text_file(
+                    local_state_file_in, state_file_text.splitlines()[-1]
+                )
+            else:
                 raise ValueError(
-                    f"State file from '{table_state_file} ' is not valid JSON. "
-                    f"Please either delete or fix the file and then retry. {ex}"
+                    f"State file from '{table_state_file}' is not valid JSON. "
+                    f"Please either delete or fix the file and then retry."
                 )
             tap_args += f" --state {local_state_file_in}"
     else:
