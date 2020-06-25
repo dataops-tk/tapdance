@@ -97,6 +97,8 @@ jobs:
     needs:
       - pypi_publish
     steps:
+      - name: Clone git repo
+        uses: actions/checkout@v1
       - name: Initialize 'pre' flag if not on main branch
         run: |
           if [[ "${{ github.ref }}" == *main ]]
@@ -114,8 +116,6 @@ jobs:
           echo "Version:      $(cat VERSION).$GITHUB_RUN_NUMBER"
           echo "Branch Name:  ${{ github.ref }}"
           echo "PRE_FLAG:     $PRE_FLAG"
-      - name: Clone git repo
-        uses: actions/checkout@v1
       - name: Set up Python 3.7
         uses: actions/setup-python@v1
         with:
