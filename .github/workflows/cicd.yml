@@ -130,6 +130,7 @@ jobs:
           tapdance build_image mssql snowflake-test --push $PRE_FLAG
           tapdance build_image pardot snowflake-test --push $PRE_FLAG
           tapdance build_image salesforce snowflake-test --push $PRE_FLAG
+          tapdance build_image sftp snowflake-test --push $PRE_FLAG
           tapdance build_image covid-19 s3-csv --push $PRE_FLAG
       - name: Build and push all pre-release singer images
         run: cd docker && tapdance build_all_images --push $PRE_FLAG
