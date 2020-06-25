@@ -258,6 +258,17 @@ def _sync_one_table(
                 uio.create_text_file(
                     local_state_file_in, state_file_text.splitlines()[-1]
                 )
+            elif len(state_file_text.splitlines()) >= 2 and _is_valid_json(
+                state_file_text.splitlines()[-2]
+            ):
+                logging.warning(
+                    "State file contains multiple states. "
+                    "Using 2nd-to-last line of JSON state: "
+                    + state_file_text.replace("\n", "\\n")
+                )
+                uio.create_text_file(
+                    local_state_file_in, state_file_text.splitlines()[-2]
+                )
             else:
                 raise ValueError(
                     f"State file from '{table_state_file}' is not valid JSON. "
