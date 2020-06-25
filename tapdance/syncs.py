@@ -252,7 +252,7 @@ def _sync_one_table(
                 _ = json.loads(state_file_text)
             elif _is_valid_json(state_file_text.splitlines()[-1]):
                 logging.warning(
-                    "State file contains multiple states. Using final line of state file: "
+                    "State file contains multiple states. Using final line of JSON state: "
                     + state_file_text.replace("\n", "\\n")
                 )
                 uio.create_text_file(
@@ -261,7 +261,8 @@ def _sync_one_table(
             else:
                 raise ValueError(
                     f"State file from '{table_state_file}' is not valid JSON. "
-                    f"Please either delete or fix the file and then retry."
+                    f"Please either delete or fix the file and then retry. JSON text:"
+                    + state_file_text.replace("\n", "\\n")
                 )
             tap_args += f" --state {local_state_file_in}"
     else:
