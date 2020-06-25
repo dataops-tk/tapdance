@@ -58,20 +58,6 @@ jobs:
         uses: actions/setup-python@v1
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Initialize 'pre' flag if not on main branch
-        run: |
-          if [[ "${{ github.ref }}" == *main ]]
-          then
-            echo "::set-env name=PRE_FLAG::"
-          elif [[ "${{ github.ref }}" == *master ]]
-          then
-            echo "::set-env name=PRE_FLAG::"
-          else
-            echo "::set-env name=PRE_FLAG::--pre"
-          fi
-      - name: Echo prerelease flag
-        run: |
-          echo "PRE_FLAG=$PRE_FLAG"
       - name: Push to PyPi (https://pypi.org/project/tapdance/)  (build number ${{ github.run_number }})
         env:
           BRANCH_NAME: ${{ github.ref }}
@@ -111,6 +97,20 @@ jobs:
     needs:
       - pypi_publish
     steps:
+      - name: Initialize 'pre' flag if not on main branch
+        run: |
+          if [[ "${{ github.ref }}" == *main ]]
+          then
+            echo "::set-env name=PRE_FLAG::"
+          elif [[ "${{ github.ref }}" == *master ]]
+          then
+            echo "::set-env name=PRE_FLAG::"
+          else
+            echo "::set-env name=PRE_FLAG::--pre"
+          fi
+      - name: Echo prerelease flag
+        run: |
+          echo "PRE_FLAG=$PRE_FLAG"
       - name: Clone git repo
         uses: actions/checkout@v1
       - name: Set up Python 3.7
@@ -124,15 +124,11 @@ jobs:
       - name: Build and push all *prioritized* pre-release singer images (build number ${{ github.run_number }})
         run: |
           cd docker
-          tapdance build_image mssql snowflake-test --pre --push
-        # tapdance build_image mssql snowflake --pre --push
-        # tapdance build_image pardot snowflake-test --pre --push
-        # tapdance build_image salesforce snowflake-test --pre --push
-        # tapdance build_image salesforce s3-csv --pre --push
-        # tapdance build_image covid-19 s3-csv --pre --push
-        # tapdance build_image covid-19 redshift --pre --push
-        # tapdance build_image covid-19 postgres --pre --push
+          tapdance build_image mssql snowflake-test --push $PRE_FLAG
+          tapdance build_image pardot snowflake-test --push $PRE_FLAG
+          tapdance build_image salesforce snowflake-test --push $PRE_FLAG
+          tapdance build_image covid-19 s3-csv --push $PRE_FLAG
       - name: Build and push all pre-release singer images
-        run: cd docker && tapdance build_all_images --pre --push
+        run: cd docker && tapdance build_all_images --push $PRE_FLAG
       - name: Print list of images
         run: docker image ls
