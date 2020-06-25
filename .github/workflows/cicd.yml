@@ -72,7 +72,6 @@ jobs:
       - name: Push to PyPi (https://pypi.org/project/tapdance/)  (build number ${{ github.run_number }})
         env:
           BRANCH_NAME: ${{ github.ref }}
-          BRANCH_NAME: $PRE_FLAG
           PYPI_USER: ${{ secrets.PYPI_USER }}
           PYPI_PASS: ${{ secrets.PYPI_SECRET }}
         run: |
