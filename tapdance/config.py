@@ -66,7 +66,15 @@ def get_config_file(
         if k.startswith(prefix) and not k.endswith("_EXE"):
             logging.debug(f"Parsing env variable '{k}' for '{plugin_name}'...")
             setting_name = k.split(prefix)[1]
-            conf_dict[setting_name] = v
+            # Ensure truthinesss and falseness are maintained
+            if str(v).lower() == "false":
+                conf_dict[setting_name] = False
+            elif str(v).lower() == "true":
+                conf_dict[setting_name] = True
+            elif str(v) == "0":
+                conf_dict[setting_name] = 0
+            else:
+                conf_dict[setting_name] = v
             use_tmp_file = True
     if "-".join(plugin_name.split("-")[1:]).upper() in S3_TARGET_IDS:
         conf_dict = _inject_s3_config_creds(plugin_name, conf_dict)
@@ -244,18 +252,19 @@ def get_single_table_target_config_file(
 def replace_placeholders(config_dict, tap_name, table_name, pipeline_version_num):
     new_config = config_dict.copy()
     for setting_name in new_config.keys():
-        for param, replacement_value in {
-            "tap": tap_name,
-            "table": table_name,
-            "version": pipeline_version_num,
-        }.items():
-            search_key = "{" + f"{param}" + "}"
-            if search_key in new_config[setting_name]:
-                logging.info(
-                    f"Modifying '{setting_name}' setting value, "
-                    f"replacing '{search_key}' placeholder with '{replacement_value}'."
-                )
-                new_config[setting_name] = new_config[setting_name].replace(
-                    search_key, replacement_value
-                )
+        if isinstance(new_config[setting_name], str):
+            for param, replacement_value in {
+                "tap": tap_name,
+                "table": table_name,
+                "version": pipeline_version_num,
+            }.items():
+                search_key = "{" + f"{param}" + "}"
+                if search_key in new_config[setting_name]:
+                    logging.info(
+                        f"Modifying '{setting_name}' setting value, "
+                        f"replacing '{search_key}' placeholder with '{replacement_value}'."
+                    )
+                    new_config[setting_name] = new_config[setting_name].replace(
+                        search_key, replacement_value
+                    )
     return new_config
