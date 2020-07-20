@@ -25,6 +25,14 @@ SKIP_SENSELESS_VALIDATORS = (
 )
 
 
+def _is_valid_json(json_text):
+    try:
+        _ = json.loads(json_text)
+    except ValueError:
+        return False
+    return True
+
+
 @logged("running discovery on '{tap_name}'")
 def _discover(
     tap_name: str,
@@ -41,11 +49,14 @@ def _discover(
         cdw = os.getcwd().replace("\\", "/")
         config_file = os.path.relpath(config_file).replace("\\", "/")
         config_file = f"/home/local/{config_file}"
-        runnow.run(
+        _, output_text = runnow.run(
             f"docker run --rm -it "
             f"-v {cdw}:/home/local "
-            f"{img} --config {config_file} --discover"  # > {catalog_file}" # TK - TODO: << Fix this
+            f"{img} --config {config_file} --discover"
         )
+        if not _is_valid_json(output_text):
+            raise RuntimeError(f"Could not parse json file from output:\n{output_text}")
+        uio.create_text_file(catalog_file, output_text)
     else:
         runnow.run(f"{tap_exe} --config {config_file} --discover > {catalog_file}")
 
@@ -58,9 +69,9 @@ def _check_rules(
     Parameters
     ----------
     catalog_file : str
-        [description]
+        Path to a catalog file.
     rules_file : List[str]
-        [description]
+        Path to a rules file.
 
     Returns
     -------
@@ -69,7 +80,6 @@ def _check_rules(
           (selected) or False (ignored)
         - List of excluded tables
     """
-    # Check rules_file to fill `matches`
     select_rules = [
         line.split("#")[0].rstrip()
         for line in uio.get_text_file_contents(rules_file).splitlines()
@@ -215,8 +225,7 @@ def plan(
     target_exe: str = None,
     replication_strategy: str = "INCREMENTAL",
 ):
-    """
-    Perform all actions necessary to prepare (plan) for a tap execution.
+    """Perform all actions necessary to prepare (plan) for a tap execution.
 
      1. Scan (discover) the source system metadata (if catalog missing or `rescan=True`)
      2. Apply filter rules from `rules_file` and create human-readable `plan.yml` file to
@@ -226,21 +235,39 @@ def plan(
      4. Create a new `catalog-selected.json` file which applies the plan file and which
         can be used by the tap to run data extractions.
 
-    Arguments:
-        tap_name {str} -- [description]
-
-    Keyword-Only Arguments:
-        rescan {bool} -- Optional. True to force a rescan and replace existing metadata.
-        (default: False)
-        taps_dir {str} -- Optional. The directory containing the rules file. (Default=cwd)
-        (`{tap-name}.rules.txt`).
-        config_dir {str} -- Optional. The default location of config, catalog and other
-        potentially sensitive information. (Recommended to be excluded from source control.)
+    Parameters:
+    -----------
+    tap_name : str
+        The name of the tap without the 'tap-' prefix.
+    rescan : bool, optional
+        True to force a rescan and replace existing metadata. (default: False)
+    taps_dir: str, optional
+        The directory containing the rules file.
+        (Default=cwd)
+        (e.g. `{tap-name}.rules.txt`).
+    config_dir: str, optional
+        The default location of config, catalog and other potentially sensitive
+        information. (Recommended to be excluded from source control.)
         (Default="${taps_dir}/.secrets")
-        config_file {str} -- Optional. The location of the JSON config file which contains
-        config for the specified plugin. (Default=f"${config_dir}/${plugin_name}-config.json")
-        dockerized {bool} -- Optional. If specified, will override the default behavior for
-        the local platform.
+    config_file : str, optional
+        The location of the JSON config file which contains config for the specified
+        plugin. (Default=f"${config_dir}/${plugin_name}-config.json")
+    dockerized : bool, optional
+        If specified, will override the default behavior for the local platform.
+    tap_exe : str, optional
+        Specifies the tap executable, if different from `tap-{tap_name}`.
+    target_exe : str, optional
+        Specifies the target executable, if different from `tap-{target_name}`.
+    replication_strategy : str, optional
+        One of "FULL_TABLE", "INCREMENTAL", or "LOG_BASED"; by default "INCREMENTAL"
+
+    Raises
+    ------
+    ValueError
+        Raised if an argument value is not within expected domain.
+    FileExistsError
+        Raised if files do not exist in default locations, or if paths provided do not
+        point to valid files.
     """
     if replication_strategy not in ["FULL_TABLE", "INCREMENTAL", "LOG_BASED"]:
         raise ValueError(
