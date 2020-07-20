@@ -3,12 +3,11 @@
 import os
 from typing import List
 
-import json
 import uio
 import runnow
 from logless import get_logger, logged
 
-from tapdance import config, docker, plans
+from tapdance import config, docker, plans, states
 
 logging = get_logger("tapdance")
 
@@ -70,12 +69,15 @@ def sync(
     """
     tap_exe = tap_exe or config.get_exe(f"tap-{tap_name}")
     target_exe = target_exe or config.get_exe(f"target-{target_name}")
-    if (dockerized is None) and (uio.is_windows() or uio.is_mac()):
-        dockerized = True
-        logging.info(
-            "The 'dockerized' argument is not set when running either Windows or OSX..."
-            "Defaulting to dockerized=True"
-        )
+    if dockerized is None:
+        if uio.is_windows() or uio.is_mac():
+            dockerized = True
+            logging.info(
+                "The 'dockerized' argument is not set when running either Windows or OSX..."
+                "Defaulting to dockerized=True"
+            )
+        else:
+            dockerized = False
     # Deprecated in favor of partial dockerization:
     # if dockerized:
     #     args = ["plan", tap_name, target_name]
@@ -109,17 +111,21 @@ def sync(
         logging.info("Skipping check for target config (--target_config_file=False)")
         target_config_file = None
         target_config_required = False
-    config_file = config.get_config_file(
-        f"tap-{tap_name}",
-        config_dir=config_dir,
-        config_file=config_file,
-        required=config_required,
+    config_file = str(
+        config.get_config_file(
+            f"tap-{tap_name}",
+            config_dir=config_dir,
+            config_file=config_file,
+            required=config_required,
+        )
     )
-    target_config_file = config.get_config_file(
-        f"target-{target_name}",
-        config_dir=config_dir,
-        config_file=target_config_file,
-        required=target_config_required,
+    target_config_file = str(
+        config.get_config_file(
+            f"target-{target_name}",
+            config_dir=config_dir,
+            config_file=target_config_file,
+            required=target_config_required,
+        )
     )
     if not uio.file_exists(config_file):
         raise FileExistsError(config_file)
@@ -206,14 +212,6 @@ def _dockerize_cli_args(arg_str: str, container_volume_root="/home/local") -> st
     return " ".join(newargs)
 
 
-def _is_valid_json(json_text):
-    try:
-        _ = json.loads(json_text)
-    except ValueError:
-        return False
-    return True
-
-
 def _sync_one_table(
     tap_name: str,
     table_name: str,
@@ -237,49 +235,14 @@ def _sync_one_table(
     )["table_state_file"]
     tap_args = f"--config {config_file} --catalog {table_catalog_file}"
     if uio.file_exists(table_state_file):
-        if uio.is_local(table_state_file):
-            local_state_file_in = table_state_file
-        else:
-            local_state_file_in = os.path.join(
-                uio.get_scratch_dir(), os.path.basename(table_state_file)
-            )
-            uio.download_file(table_state_file, local_state_file_in)
-        state_file_text = uio.get_text_file_contents(local_state_file_in)
-        if state_file_text == "":
+        if not uio.get_text_file_contents(table_state_file):
             logging.warning(f"Ignoring blank state file from '{table_state_file}'.")
         else:
-            if _is_valid_json(state_file_text):
-                pass
-            elif _is_valid_json(state_file_text.splitlines()[-1]):
-                logging.warning(
-                    "State file contains multiple states. Using final line of JSON state: "
-                    + state_file_text.replace("\n", "\\n")
-                )
-                uio.create_text_file(
-                    local_state_file_in, state_file_text.splitlines()[-1]
-                )
-            elif len(state_file_text.splitlines()) >= 2 and _is_valid_json(
-                state_file_text.splitlines()[-2]
-            ):
-                logging.warning(
-                    "State file contains multiple states. "
-                    "Using 2nd-to-last line of JSON state: "
-                    + state_file_text.replace("\n", "\\n")
-                )
-                uio.create_text_file(
-                    local_state_file_in, state_file_text.splitlines()[-2]
-                )
-            else:
-                raise ValueError(
-                    f"State file from '{table_state_file}' is not valid JSON. "
-                    f"Please either delete or fix the file and then retry. JSON text:"
-                    + state_file_text.replace("\n", "\\n")
-                )
+            local_state_file_in = os.path.join(
+                uio.get_temp_dir(), f"{tap_name}-{table_name}-state.json"
+            )
+            states.make_aggregate_state_file(table_state_file, local_state_file_in)
             tap_args += f" --state {local_state_file_in}"
-    else:
-        local_state_file_in = os.path.join(
-            uio.get_temp_dir(), f"{tap_name}-{table_name}-state.json"
-        )
     local_state_file_out = f"{'.'.join(local_state_file_in.split('.')[:-1])}-new.json"
     tmp_target_config = config.get_single_table_target_config_file(
         target_name,
