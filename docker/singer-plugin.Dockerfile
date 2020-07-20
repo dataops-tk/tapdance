@@ -33,4 +33,4 @@ ENV PATH="/venv/${PLUGIN_ALIAS}:${PATH}"
 RUN test -e $(which ${PLUGIN_ALIAS}) || exit 1
 # RUN ${PLUGIN_ALIAS} --help
 
-ENTRYPOINT [ "${PLUGIN_ALIAS}" ]
+ENTRYPOINT "$PLUGIN_ALIAS"

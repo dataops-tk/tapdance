@@ -222,7 +222,6 @@ def plan(
     config_file: str = None,
     dockerized: bool = None,
     tap_exe: str = None,
-    target_exe: str = None,
     replication_strategy: str = "INCREMENTAL",
 ):
     """Perform all actions necessary to prepare (plan) for a tap execution.
@@ -256,8 +255,6 @@ def plan(
         If specified, will override the default behavior for the local platform.
     tap_exe : str, optional
         Specifies the tap executable, if different from `tap-{tap_name}`.
-    target_exe : str, optional
-        Specifies the target executable, if different from `tap-{target_name}`.
     replication_strategy : str, optional
         One of "FULL_TABLE", "INCREMENTAL", or "LOG_BASED"; by default "INCREMENTAL"
 
