@@ -13,9 +13,9 @@ def main():
     print_version()
     fire.Fire(
         {
-            "install": install,
             "plan": plan,
             "sync": sync,
+            "install": install,
             "build_all_images": build_all_images,
             "build_image": build_image,
             "version": print_version,
