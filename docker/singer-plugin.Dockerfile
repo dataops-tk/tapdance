@@ -33,4 +33,4 @@ ENV PATH="/venv/${PLUGIN_ALIAS}:${PATH}"
 RUN test -e $(which ${PLUGIN_ALIAS}) || exit 1
 # RUN ${PLUGIN_ALIAS} --help
 
-CMD [ "tapdance plan ${PLUGIN_ALIAS} --config-file=.secrets/${PLUGIN_ALIAS}-config.json" ]
+ENTRYPOINT [ "${PLUGIN_ALIAS}" ]
