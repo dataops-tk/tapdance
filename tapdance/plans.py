@@ -52,7 +52,9 @@ def _discover(
         _, output_text = runnow.run(
             f"docker run --rm -it "
             f"-v {cdw}:/home/local "
-            f"{img} --config {config_file} --discover"
+            f"{img} --config {config_file} --discover",
+            echo=False,
+            capture_stderr=False,
         )
         if not _is_valid_json(output_text):
             raise RuntimeError(f"Could not parse json file from output:\n{output_text}")
