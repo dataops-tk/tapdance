@@ -221,7 +221,8 @@ def _inject_s3_config_creds(
     ) = uio.parse_aws_creds()
     if aws_access_key_id and aws_secret_access_key:
         logging.info(
-            "Passing 'aws_access_key_id' and 'aws_secret_access_key' "
+            f"Passing 'aws_access_key_id' (...{aws_access_key_id[-4:]}) and "
+            f"'aws_secret_access_key' ({aws_secret_access_key[:4]}...) "
             f"credentials to '{plugin_name}'"
         )
         new_config["aws_access_key_id"] = aws_access_key_id
@@ -232,7 +233,10 @@ def _inject_s3_config_creds(
             f"credentials for '{plugin_name}'"
         )
     if aws_session_token:
-        logging.info(f"Passing 'aws_session_token' to '{plugin_name}'")
+        logging.info(
+            f"Passing 'aws_session_token' ('{aws_session_token[:4]}...') "
+            f"to '{plugin_name}'"
+        )
         new_config["aws_session_token"] = aws_session_token
     return new_config
 
