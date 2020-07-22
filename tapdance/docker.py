@@ -173,7 +173,7 @@ def _get_plugin_info(plugin_id, plugins_index=None):
     for name, source, alias in plugins:
         if (alias or name) == plugin_id:
             return (name, source, alias)
-    raise ValueError(f"Could not file a plugin called '{plugin_id}'")
+    raise ValueError(f"Could not locate the plugin called '{plugin_id}'")
 
 
 def _build_all_composite(

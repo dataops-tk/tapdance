@@ -143,7 +143,6 @@ def sync(
             config_dir=catalog_dir,
             rescan=rescan,
             tap_exe=tap_exe,
-            target_exe=target_exe,
         )
     if isinstance(table_name, list):
         list_of_tables = table_name
