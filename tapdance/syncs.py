@@ -242,7 +242,14 @@ def _sync_one_table(
             )
             states.make_aggregate_state_file(table_state_file, local_state_file_in)
             tap_args += f" --state {local_state_file_in}"
-    local_state_file_out = f"{'.'.join(local_state_file_in.split('.')[:-1])}-new.json"
+        local_state_file_out = (
+            f"{'.'.join(local_state_file_in.split('.')[:-1])}-new.json"
+        )
+    else:
+        local_state_file_out = os.path.join(
+            uio.get_temp_dir(), f"{tap_name}-{table_name}-state-new.json"
+        )
+
     tmp_target_config = config.get_single_table_target_config_file(
         target_name,
         target_config_file,
