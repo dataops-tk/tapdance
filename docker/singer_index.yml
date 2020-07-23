@@ -9,31 +9,30 @@ singer-taps:
   - { name: tap-adwords }
   - { name: tap-covid-19 }
   - { name: tap-jira }
-  - { name: tap-kafka, source: pipelinewise-tap-kafka }
-  - { name: tap-mssql, source: tap-mssql.Dockerfile }
+  - { name: tap-kafka,      source: pipelinewise-tap-kafka }
+  - { name: tap-mssql,      source: tap-mssql.Dockerfile }
   - { name: tap-mysql }
   - { name: tap-oracle }
   - { name: tap-pardot }
-  - { name: tap-postgres, source: pipelinewise-tap-postgres }
-  - { name: tap-s3-csv, source: pipelinewise-tap-s3-csv }
+  - { name: tap-postgres,   source: pipelinewise-tap-postgres }
+  - { name: tap-s3-csv,     source: pipelinewise-tap-s3-csv }
   - { name: tap-salesforce, source: "git+https://gitlab.com/meltano/tap-salesforce.git@master" }
-  - { name: tap-salesforce, alias: tap-salesforce-singer }
-  - { name: tap-salesforce, alias: tap-salesforce-pw, source: pipelinewise-tap-salesforce }
+  - { name: tap-salesforce,  alias: tap-salesforce-singer }
+  - { name: tap-salesforce,  alias: tap-salesforce-pw, source: pipelinewise-tap-salesforce }
   - { name: tap-sftp }
-  - { name: tap-snowflake, source: pipelinewise-tap-snowflake }
+  - { name: tap-snowflake,  source: pipelinewise-tap-snowflake }
   - { name: tap-zendesk }
 
 singer-targets:
-  - { name: target-s3-csv, source: pipelinewise-target-s3-csv }
+  - { name: target-s3-csv,    source: pipelinewise-target-s3-csv }
   - { name: target-csv }
-  - { name: target-postgres, source: "pipelinewise-target-postgres" }
-  - { name: target-redshift, source: "git+https://github.com/transferwise/pipelinewise-target-redshift@master" } # Pending 2.0.0 release to PyPi (https://pypi.org/project/pipelinewise-target-redshift/)
+  - { name: target-postgres,  source: "pipelinewise-target-postgres" }
+  - { name: target-redshift,  source: "git+https://github.com/transferwise/pipelinewise-target-redshift@master" } # Pending 2.0.0 release to PyPi (https://pypi.org/project/pipelinewise-target-redshift/)
   - { name: target-snowflake, source: "pipelinewise-target-snowflake" }
-  - {
-      name: target-snowflake,
-      alias: "target-snowflake-test",
-      source: "git+https://github.com/aaronsteers/pipelinewise-target-snowflake@feature/aaronsteers-retain-s3-files",
-    }
+
+  # Custom forks with pending PRs:
+  - { name: target-snowflake,  alias: "target-snowflake-test", source: "git+https://github.com/aaronsteers/pipelinewise-target-snowflake@feature/aaronsteers-retain-s3-files" }
+  - { name: target-s3-csv,     alias: "target-s3-csv-test",    source: "git+https://github.com/aaronsteers/pipelinewise-target-s3-csv@feat/aws-access-token" }
 
 failing-taps:
 
