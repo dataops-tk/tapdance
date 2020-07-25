@@ -104,9 +104,8 @@ def _check_rules(
     return matches, excluded_table_list
 
 
-def _validate_keys(table_object):
-    _ = _get_table_key_cols("primary-key", table_object, warn_if_missing=True)
-    _ = _get_table_key_cols("replication-key", table_object, warn_if_missing=True)
+def _validate_keys(table_object: dict, key_type: str):
+    _ = _get_table_key_cols(key_type, table_object, warn_if_missing=True)
 
 
 def _get_table_key_cols(key_type: str, table_object: dict, warn_if_missing: bool):
@@ -465,7 +464,9 @@ def _create_selected_catalog(
 def _validate_selected_catalog(tap_name: str, selected_catalog_file: str,) -> None:
     selected_catalog = json.loads(Path(selected_catalog_file).read_text())
     for tbl in sorted(selected_catalog["streams"], key=lambda x: _get_stream_name(x)):
-        _validate_keys(tbl)
+        _validate_keys(tbl, key_type="primary-key")
+    for tbl in sorted(selected_catalog["streams"], key=lambda x: _get_stream_name(x)):
+        _validate_keys(tbl, key_type="replication-key")
 
 
 def _select_table(tbl: dict, replication_strategy: str):
