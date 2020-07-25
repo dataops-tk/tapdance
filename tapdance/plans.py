@@ -104,6 +104,11 @@ def _check_rules(
     return matches, excluded_table_list
 
 
+def _validate_keys(table_object):
+    _ = _get_table_key_cols("primary-key", table_object, warn_if_missing=True)
+    _ = _get_table_key_cols("replication-key", table_object, warn_if_missing=True)
+
+
 def _get_table_key_cols(key_type: str, table_object: dict, warn_if_missing: bool):
     result = []
     metadata_object = _get_stream_metadata_object(table_object)
@@ -129,11 +134,13 @@ def _set_catalog_file_keys(table_object: dict, table_plan: dict):
             logging.info(
                 f"Overriding primary key columns for '{table_name}': "
                 + str(table_plan["primary_key"])
+                + f" (was "
                 + (
-                    f" (was {metadata.get('table-key-properties')})"
+                    str(metadata.get("table-key-properties"))
                     if metadata.get("table-key-properties")
-                    else ""
+                    else "blank"
                 )
+                + ")"
             )
             metadata["table-key-properties"] = table_plan["primary_key"]
     if table_plan.get("replication_key"):
@@ -141,6 +148,13 @@ def _set_catalog_file_keys(table_object: dict, table_plan: dict):
             logging.info(
                 f"Overriding replication key columns for '{table_name}': "
                 + str(table_plan["replication_key"])
+                + f" (was "
+                + (
+                    str(metadata.get("valid-replication-keys"))
+                    if metadata.get("valid-replication-keys")
+                    else "blank"
+                )
+                + ")"
             )
             metadata["valid-replication-keys"] = table_plan["replication_key"]
 
@@ -321,16 +335,13 @@ def plan(
         catalog_file=catalog_file, rules_file=rules_file
     )
     primary_keys = _get_catalog_file_keys(
-        "primary-key", matches=matches, catalog_file=catalog_file, warn_if_missing=True
+        "primary-key", matches=matches, catalog_file=catalog_file
     )
     primary_keys.update(
         _get_rules_file_keys("primary-key", matches=matches, rules_file=rules_file)
     )
     replication_keys = _get_catalog_file_keys(
-        "replication-key",
-        matches=matches,
-        catalog_file=catalog_file,
-        warn_if_missing=True,
+        "replication-key", matches=matches, catalog_file=catalog_file,
     )
     replication_keys.update(
         _get_rules_file_keys("replication-key", matches=matches, rules_file=rules_file,)
@@ -347,6 +358,7 @@ def plan(
         replication_strategy=replication_strategy,
         skip_senseless_validators=SKIP_SENSELESS_VALIDATORS,
     )
+    _validate_selected_catalog(tap_name, selected_catalog_file=selected_catalog_file)
 
 
 def _make_plan_file_text(
@@ -416,7 +428,7 @@ def _create_selected_catalog(
     output_file: str,
     replication_strategy: str,
     skip_senseless_validators: bool,
-):
+) -> None:
     catalog_dir = config.get_catalog_output_dir(tap_name)
     source_catalog_path = full_catalog_file or os.path.join(
         catalog_dir, "catalog-raw.json"
@@ -444,6 +456,16 @@ def _create_selected_catalog(
     catalog_new = {"streams": included_table_objects}
     with open(output_file, "w") as f:
         json.dump(catalog_new, f, indent=2)
+
+
+@logged(
+    "validating selected catalog metadata "
+    "from '{tap_name}' selected catalog file: {selected_catalog_file}"
+)
+def _validate_selected_catalog(tap_name: str, selected_catalog_file: str,) -> None:
+    selected_catalog = json.loads(Path(selected_catalog_file).read_text())
+    for tbl in sorted(selected_catalog["streams"], key=lambda x: _get_stream_name(x)):
+        _validate_keys(tbl)
 
 
 def _select_table(tbl: dict, replication_strategy: str):
