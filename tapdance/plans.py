@@ -4,7 +4,7 @@ import json
 import os
 from pathlib import Path
 import re
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, Union
 import yaml
 
 import uio
@@ -25,7 +25,7 @@ SKIP_SENSELESS_VALIDATORS = (
 )
 
 
-def _is_valid_json(json_text):
+def _is_valid_json(json_text: str):
     try:
         _ = json.loads(json_text)
     except ValueError:
@@ -41,7 +41,7 @@ def _discover(
     catalog_dir: str,
     dockerized: bool,
     tap_exe: str,
-):
+) -> None:
     catalog_file = f"{catalog_dir}/{tap_name}-catalog-raw.json".replace("\\", "/")
     uio.create_folder(catalog_dir)
     img = f"{docker.BASE_DOCKER_REPO}:{tap_exe}"
@@ -227,6 +227,26 @@ def _get_rules_file_keys(
     return result
 
 
+def get_table_list(
+    table_filter: Optional[Union[str, List[str]]],
+    exclude_tables: Optional[Union[str, List[str]]],
+    catalog_file: str,
+) -> List[str]:
+    if isinstance(table_filter, list):
+        list_of_tables = table_filter
+    elif table_filter is None or table_filter == "*":
+        list_of_tables = sorted(_get_catalog_tables_dict(catalog_file).keys())
+    elif table_filter[0] == "[":
+        # Remove square brackets and split the result on commas
+        list_of_tables = table_filter.replace("[", "").replace("]", "").split(",")
+    else:
+        list_of_tables = [table_filter]
+    if exclude_tables:
+        logging.info(f"Table(s) to exclude from sync: {', '.join(exclude_tables)}")
+        list_of_tables = [t for t in list_of_tables if t not in exclude_tables]
+    return list_of_tables
+
+
 @logged("updating plan file for 'tap-{tap_name}'")
 def plan(
     tap_name: str,
@@ -238,7 +258,7 @@ def plan(
     dockerized: bool = None,
     tap_exe: str = None,
     replication_strategy: str = "INCREMENTAL",
-):
+) -> None:
     """Perform all actions necessary to prepare (plan) for a tap execution.
 
      1. Scan (discover) the source system metadata (if catalog missing or `rescan=True`)
@@ -302,13 +322,14 @@ def plan(
         config_required = False
     config_file = config.get_config_file(
         f"tap-{tap_name}",
+        taps_dir=taps_dir,
         config_dir=config_dir,
         config_file=config_file,
         required=config_required,
     )
     if not uio.file_exists(config_file):
         raise FileExistsError(config_file)
-    catalog_dir = config.get_catalog_output_dir(tap_name)
+    catalog_dir = config.get_catalog_output_dir(tap_name, taps_dir)
     catalog_file = f"{catalog_dir}/{tap_name}-catalog-raw.json"
     selected_catalog_file = f"{catalog_dir}/{tap_name}-catalog-selected.json"
     plan_file = config.get_plan_file(tap_name, taps_dir, required=False)
@@ -402,7 +423,7 @@ def _make_plan_file_text(
     return file_text
 
 
-def _get_catalog_table_columns(table_object: dict):
+def _get_catalog_table_columns(table_object: dict) -> List[str]:
     return table_object["schema"]["properties"].keys()
 
 
@@ -412,7 +433,7 @@ def _get_catalog_tables_dict(catalog_file: str) -> dict:
     return table_objects
 
 
-def _get_stream_name(table_object: dict):
+def _get_stream_name(table_object: dict) -> dict:
     return table_object["stream"]
 
 
@@ -428,7 +449,8 @@ def _create_selected_catalog(
     replication_strategy: str,
     skip_senseless_validators: bool,
 ) -> None:
-    catalog_dir = config.get_catalog_output_dir(tap_name)
+    taps_dir = config.get_taps_dir()
+    catalog_dir = config.get_catalog_output_dir(tap_name, taps_dir)
     source_catalog_path = full_catalog_file or os.path.join(
         catalog_dir, "catalog-raw.json"
     )
@@ -496,7 +518,7 @@ def _select_table(tbl: dict, replication_strategy: str):
         stream_metadata["replication-method"] = replication_method
 
 
-def _remove_senseless_validators(tbl: dict):
+def _remove_senseless_validators(tbl: dict) -> None:
     for col, props in tbl["schema"]["properties"].items():
         for senseless in [
             "multipleOf",
@@ -508,10 +530,9 @@ def _remove_senseless_validators(tbl: dict):
         ]:
             if senseless in props:
                 props.pop(senseless)
-    return
 
 
-def _select_table_column(tbl: dict, col_name: str, selected: bool):
+def _select_table_column(tbl: dict, col_name: str, selected: bool) -> None:
     for metadata in tbl["metadata"]:
         if (
             len(metadata["breadcrumb"]) >= 2
@@ -523,7 +544,6 @@ def _select_table_column(tbl: dict, col_name: str, selected: bool):
     tbl["metadata"].append(
         {"breadcrumb": ["properties", col_name], "metadata": {"selected": selected}}
     )
-    return
 
 
 def _get_stream_metadata_object(stream_object: dict):
@@ -538,9 +558,13 @@ def _get_stream_metadata_object(stream_object: dict):
     "from '{tap_name}' source catalog file: {full_catalog_file}"
 )
 def _create_single_table_catalog(
-    tap_name, table_name, full_catalog_file=None, output_file=None
-):
-    catalog_dir = config.get_catalog_output_dir(tap_name)
+    tap_name: str,
+    table_name: str,
+    full_catalog_file: str = None,
+    output_file: str = None,
+) -> None:
+    taps_dir = config.get_taps_dir()
+    catalog_dir = config.get_catalog_output_dir(tap_name, taps_dir)
     source_catalog_path = full_catalog_file or os.path.join(
         catalog_dir, "catalog-selected.json"
     )
@@ -579,7 +603,7 @@ def _col_match_check(match_text: str, select_rules: list) -> bool:
     return selected
 
 
-def _is_match(value, pattern) -> Optional[bool]:
+def _is_match(value: str, pattern: str) -> Optional[bool]:
     if not pattern:
         return None
     if value.lower() == pattern.lower():

@@ -29,43 +29,45 @@ def sync(
     target_config_file: str = None,
     state_file: str = None,
     exclude_tables: List[str] = None,
-):
+) -> None:
     """
     Synchronize data from tap to target.
 
     Arguments:
-        tap_name {str} -- The name/alias of the source tap, without the `tap-` prefix.
+    ----------
+    - tap_name {str} -- The name/alias of the source tap, without the `tap-` prefix.
 
     Keyword Arguments:
-        target_name {str} -- The name/alias of the target, without the `tap-` prefix.
-        (default: {"csv"})
-        table_name {str} -- The name of the table to sync. To sync multiple tables, specify
-        a comma-separated list of tables surrounded by queare brackets (e.g. "[tb1,tbl2]"),
-        or use "*" to sync all table.
-        (default: {"*"})
-        rescan {bool} -- Optional. True to force a rescan and replace existing metadata.
-        (default: False)
-        dockerized {bool} -- Optional. True or False to force whether the command is run
-        dockerized. If omitted, the best option will be selected automatically.
-        taps_dir {str} -- Optional. The directory containing the rules file. (Default=cwd)
-        (`{tap-name}.rules.txt`).
-        config_dir {str} -- Optional. The default location of config, catalog and other
-        potentially sensitive information. (Recommended to be excluded from source control.)
-        (Default="${taps_dir}/.secrets")
-        config_file {str} -- Optional. The location of the JSON config file which
-        contains config for the specified tap or 'False' to only pull settings from
-        environment variables. Default path is f"${config_dir}/${plugin_name}-config.json".
+    ------------------
+    - target_name {str} -- The name/alias of the target, without the `tap-` prefix.
+      (default: {"csv"})
+    - table_name {str} -- The name of the table to sync. To sync multiple tables, specify
+      a comma-separated list of tables surrounded by queare brackets (e.g. "[tb1,tbl2]"),
+      or use "*" to sync all table.
+      (default: {"*"})
+    - rescan {bool} -- Optional. True to force a rescan and replace existing metadata.
+      (default: False)
+    - dockerized {bool} -- Optional. True or False to force whether the command is run
+      dockerized. If omitted, the best option will be selected automatically.
+    - taps_dir {str} -- Optional. The directory containing the rules file. (Default=cwd)
+      (`{tap-name}.rules.txt`).
+    - config_dir {str} -- Optional. The default location of config, catalog and other
+      potentially sensitive information. (Recommended to be excluded from source control.)
+      (Default="${taps_dir}/.secrets")
+    - config_file {str} -- Optional. The location of the JSON config file which
+      contains config for the specified tap or 'False' to only pull settings from
+      environment variables. Default path is f"${config_dir}/${plugin_name}-config.json".
 
-        catalog_dir {str} -- Optional. The output directory to be used for saving catalog
-        files. If not provided, a path will be generated automatically within `.output` or
-        a path specified by the `TAP_SCRATCH_DIR` environment variable.
-        target_config_file {str} -- Optional. The location of the JSON config file which
-        contains config for the specified target or 'False' to only pull settings from
-        environment variables. Default path is f"${config_dir}/${plugin_name}-config.json".
-        state_file {str} -- Optional. The path to a state file. If not provided, a state
-        file path will be generated automatically within `catalog_dir`.
-        exclude_table_names {List(str)} -- Optional. A list of tables to exclude. Ignored
-        if table_name arg is not "*".
+    - catalog_dir {str} -- Optional. The output directory to be used for saving catalog
+      files. If not provided, a path will be generated automatically within `.output` or
+      a path specified by the `TAP_SCRATCH_DIR` environment variable.
+    - target_config_file {str} -- Optional. The location of the JSON config file which
+      contains config for the specified target or 'False' to only pull settings from
+      environment variables. Default path is f"${config_dir}/${plugin_name}-config.json".
+    - state_file {str} -- Optional. The path to a state file. If not provided, a state
+      file path will be generated automatically within `catalog_dir`.
+    - exclude_table_names {List(str)} -- Optional. A list of tables to exclude. Ignored
+      if table_name arg is not "*".
     """
     tap_exe = tap_exe or config.get_exe(f"tap-{tap_name}")
     target_exe = target_exe or config.get_exe(f"target-{target_name}")
@@ -78,23 +80,6 @@ def sync(
             )
         else:
             dockerized = False
-    # Deprecated in favor of partial dockerization:
-    # if dockerized:
-    #     args = ["plan", tap_name, target_name]
-    #     for var in [
-    #         "table_name",
-    #         "rescan",
-    #         "taps_dir",
-    #         "config_dir",
-    #         "config_file",
-    #         "catalog_dir",
-    #         "target_config_file",
-    #         "state_file",
-    #     ]:
-    #         if var in locals() and locals()[var]:
-    #             args.append(f"--{var}={locals()[var]}")
-    #     docker.rerun_dockerized(tap_name, args=args)
-    #     return
     taps_dir = config.get_taps_dir(taps_dir)
     rules_file = config.get_rules_file(taps_dir, tap_name)
     config_required = True
@@ -114,6 +99,7 @@ def sync(
     config_file = str(
         config.get_config_file(
             f"tap-{tap_name}",
+            taps_dir=taps_dir,
             config_dir=config_dir,
             config_file=config_file,
             required=config_required,
@@ -122,6 +108,7 @@ def sync(
     target_config_file = str(
         config.get_config_file(
             f"target-{target_name}",
+            taps_dir=taps_dir,
             config_dir=config_dir,
             config_file=target_config_file,
             required=target_config_required,
@@ -131,11 +118,9 @@ def sync(
         raise FileExistsError(config_file)
     if not uio.file_exists(target_config_file):
         raise FileExistsError(target_config_file)
-    catalog_dir = catalog_dir or config.get_catalog_output_dir(tap_name)
+    catalog_dir = catalog_dir or config.get_catalog_output_dir(tap_name, taps_dir)
     full_catalog_file = f"{catalog_dir}/{tap_name}-catalog-selected.json"
     if rescan or rules_file or not uio.file_exists(full_catalog_file):
-        # Create or update `*-catalog-selected.json` and `*-plan.yml` files
-        # using the `{tap-name}.rules.txt` rules file
         plans.plan(
             tap_name,
             taps_dir=taps_dir,
@@ -144,21 +129,11 @@ def sync(
             rescan=rescan,
             tap_exe=tap_exe,
         )
-    if isinstance(table_name, list):
-        list_of_tables = table_name
-    elif table_name is None or table_name == "*":
-        list_of_tables = sorted(
-            plans._get_catalog_tables_dict(full_catalog_file).keys()
-        )
-    elif table_name[0] == "[":
-        # Remove square brackets and split the result on commas
-        list_of_tables = table_name.replace("[", "").replace("]", "").split(",")
-    else:
-        list_of_tables = [table_name]
-    if exclude_tables:
-        logging.info(f"Table(s) to exclude from sync: {', '.join(exclude_tables)}")
-        list_of_tables = [t for t in list_of_tables if t not in exclude_tables]
-
+    list_of_tables = plans.get_table_list(
+        table_filter=table_name,
+        exclude_tables=exclude_tables,
+        catalog_file=full_catalog_file,
+    )
     logging.info(f"Table(s) to sync: {', '.join(list_of_tables)}")
     for table in list_of_tables:
         # Call each tap independently so that table state files are kept separate:
@@ -188,7 +163,7 @@ def sync(
         )
 
 
-def _dockerize_path(localpath, container_volume_root="/home/local"):
+def _dockerize_path(localpath: str, container_volume_root="/home/local") -> str:
     result = os.path.relpath(localpath).replace("\\", "/")
     result = f"{container_volume_root}/{result}"
     return result
@@ -222,7 +197,7 @@ def _sync_one_table(
     dockerized: bool,
     tap_exe: str,
     target_exe: str,
-):
+) -> None:
     if not tap_exe:
         tap_exe = f"tap-{tap_name}"
     pipeline_version_num = config.get_pipeline_version_number()

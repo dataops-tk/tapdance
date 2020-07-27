@@ -8,7 +8,7 @@ import uio
 logging = get_logger("tapdance")
 
 
-def _is_valid_json(json_text):
+def _is_valid_json(json_text: str) -> bool:
     try:
         _ = json.loads(json_text)
     except ValueError:
@@ -16,7 +16,7 @@ def _is_valid_json(json_text):
     return True
 
 
-def make_aggregate_state_file(raw_json_lines_file, output_json_file):
+def make_aggregate_state_file(raw_json_lines_file: str, output_json_file: str) -> None:
     """
     Create a valid json state file from one or more json lines ('jsonl' format).
 
@@ -40,13 +40,13 @@ def make_aggregate_state_file(raw_json_lines_file, output_json_file):
         )
 
 
-def get_aggregate_state(raw_json_lines_text) -> str:
+def get_aggregate_state(raw_json_lines_text: str) -> str:
     """
     Return a valid aggregated json state string from one or json lines ('jsonl' format).
 
     Parameters
     ----------
-    raw_state_file_jsonl_file : str
+    raw_json_lines_text : str
         String jsonl (json lines) with one or more json documents to aggregate.
     """
     if raw_json_lines_text == "":
