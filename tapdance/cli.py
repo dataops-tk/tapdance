@@ -6,6 +6,7 @@ from tapdance.docker import build_all_images, build_image
 from tapdance.install_helper import install
 from tapdance.plans import plan
 from tapdance.syncs import sync
+from tapdance.profile import profile
 
 
 def main():
@@ -19,6 +20,8 @@ def main():
             "build_all_images": build_all_images,
             "build_image": build_image,
             "version": print_version,
+            "profile": profile,
+            "profile_csv": profile_csv,
         }
     )
 
