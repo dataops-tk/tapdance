@@ -13,10 +13,12 @@ singer-taps:
   - { name: tap-mssql,      source: tap-mssql.Dockerfile }
   - { name: tap-mysql }
   - { name: tap-oracle }
+  - { name: tap-pardot,     source: git+https://github.com/dreamdata-io/tap-pardot.git@master }
+  - { name: tap-pardot,      alias: tap-pardot-singer }
   - { name: tap-pardot }
   - { name: tap-postgres,   source: pipelinewise-tap-postgres }
   - { name: tap-s3-csv,     source: pipelinewise-tap-s3-csv }
-  - { name: tap-salesforce, source: "git+https://gitlab.com/meltano/tap-salesforce.git@master" }
+  - { name: tap-salesforce, source: git+https://gitlab.com/meltano/tap-salesforce.git@master }
   - { name: tap-salesforce,  alias: tap-salesforce-singer }
   - { name: tap-salesforce,  alias: tap-salesforce-pw, source: pipelinewise-tap-salesforce }
   - { name: tap-sftp }
