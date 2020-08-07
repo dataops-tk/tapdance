@@ -270,7 +270,7 @@ def replace_placeholders(
             }.items():
                 search_key = "{" + f"{param}" + "}"
                 if search_key in new_config[setting_name]:
-                    logging.info(
+                    logging.debug(
                         f"Modifying '{setting_name}' setting value, "
                         f"replacing '{search_key}' placeholder with '{replacement_value}'."
                     )
