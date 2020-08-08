@@ -36,4 +36,5 @@ RUN if [ ! -e $(which target-${target_alias}) ]; then \
 # RUN tap-${tap_alias} --help && \
 #     target-${target_alias} --help
 
+ENTRYPOINT []
 CMD [ "tapdance sync ${tap_alias} --config_file=.secrets/${tap_alias}-config.json ${target_alias} --target_config_file=.secrets/${target_alias}-config.json" ]

@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 
 from logless import get_logger, logged
-from typing import Optional
+from typing import Optional, Dict, Any
 import uio
 
 logging = get_logger("tapdance")
@@ -34,6 +34,7 @@ ENV_TAP_STATE_FILE = "TAP_STATE_FILE"
 )
 def get_config_file(
     plugin_name: str,
+    taps_dir: str = None,
     config_dir: str = None,
     config_file: str = None,
     required: bool = True,
@@ -47,7 +48,7 @@ def get_config_file(
      - If the default file exists and environment variables also exist, the temp file will
     contain the default file values along with the environment variable overrides.
     """
-    secrets_path = os.path.abspath(config_dir or get_secrets_dir())
+    secrets_path = os.path.abspath(config_dir or get_secrets_dir(taps_dir))
     config_file = config_file or f"{secrets_path}/{plugin_name}-config.json"
     tmp_path = f"{secrets_path}/tmp/{plugin_name}-config.json"
     use_tmp_file = False
@@ -90,12 +91,12 @@ def get_config_file(
     return config_file
 
 
-def get_pipeline_version_number():
+def get_pipeline_version_number() -> str:
     return os.environ.get(ENV_PIPELINE_VERSION_NUMBER, "1")
 
 
 def get_exe(tap_or_target_id: str) -> str:
-    """Gets the exe for the tap or target.
+    """Get the exe for the tap or target.
 
     Parameters
     ----------
@@ -173,25 +174,20 @@ def get_plan_file(tap_name: str, taps_dir: str = None, required: bool = True) ->
     return result
 
 
-def get_root_dir():
-    # return _ROOT_DIR
-    return "."
-
-
-def get_secrets_dir():
-    result = os.environ.get(ENV_TAP_SECRETS_DIR, f"{get_root_dir()}/.secrets")
+def get_secrets_dir(taps_dir: Optional[str]):
+    result = os.environ.get(ENV_TAP_SECRETS_DIR, f"{get_taps_dir(taps_dir)}/.secrets")
     uio.create_folder(result)
     return result
 
 
-def get_scratch_dir():
-    result = os.environ.get(ENV_TAP_SCRATCH_DIR, f"{get_root_dir()}/.output")
+def get_scratch_dir(taps_dir: Optional[str]):
+    result = os.environ.get(ENV_TAP_SCRATCH_DIR, f"{get_taps_dir(taps_dir)}/.output")
     uio.create_folder(result)
     return result
 
 
-def get_catalog_output_dir(tap_name):
-    result = f"{get_scratch_dir()}/taps/{tap_name}-catalog"
+def get_catalog_output_dir(tap_name: str, taps_dir: str) -> str:
+    result = f"{get_scratch_dir(taps_dir)}/taps/{tap_name}-catalog"
     uio.create_folder(result)
     return result
 
@@ -221,7 +217,8 @@ def _inject_s3_config_creds(
     ) = uio.parse_aws_creds()
     if aws_access_key_id and aws_secret_access_key:
         logging.info(
-            "Passing 'aws_access_key_id' and 'aws_secret_access_key' "
+            f"Passing 'aws_access_key_id' (...{aws_access_key_id[-6:]}) and "
+            f"'aws_secret_access_key' ({aws_secret_access_key[:6]}...) "
             f"credentials to '{plugin_name}'"
         )
         new_config["aws_access_key_id"] = aws_access_key_id
@@ -232,14 +229,22 @@ def _inject_s3_config_creds(
             f"credentials for '{plugin_name}'"
         )
     if aws_session_token:
-        logging.info(f"Passing 'aws_session_token' to '{plugin_name}'")
+        logging.info(
+            f"Passing 'aws_session_token' ({aws_session_token[:6]}...) "
+            f"to '{plugin_name}'"
+        )
         new_config["aws_session_token"] = aws_session_token
     return new_config
 
 
 def get_single_table_target_config_file(
-    target_name, target_config_file, *, tap_name, table_name, pipeline_version_num,
-):
+    target_name: str,
+    target_config_file: str,
+    *,
+    tap_name: str,
+    table_name: str,
+    pipeline_version_num: str,
+) -> str:
     config_defaults = json.loads(uio.get_text_file_contents(target_config_file))
     new_config = replace_placeholders(
         config_defaults, tap_name, table_name, pipeline_version_num
@@ -249,7 +254,12 @@ def get_single_table_target_config_file(
     return new_file_path
 
 
-def replace_placeholders(config_dict, tap_name, table_name, pipeline_version_num):
+def replace_placeholders(
+    config_dict: Dict[str, Any],
+    tap_name: str,
+    table_name: str,
+    pipeline_version_num: str,
+) -> Dict[str, Any]:
     new_config = config_dict.copy()
     for setting_name in new_config.keys():
         if isinstance(new_config[setting_name], str):
@@ -260,7 +270,7 @@ def replace_placeholders(config_dict, tap_name, table_name, pipeline_version_num
             }.items():
                 search_key = "{" + f"{param}" + "}"
                 if search_key in new_config[setting_name]:
-                    logging.info(
+                    logging.debug(
                         f"Modifying '{setting_name}' setting value, "
                         f"replacing '{search_key}' placeholder with '{replacement_value}'."
                     )

@@ -1,13 +1,15 @@
 selected_tables:
   c19_trk_us_daily:
+    primary_key:
+    - __sdc_row_number
+    replication_key:
+    - git_last_modified
     selected_columns:
     - git_repository
     - git_url
     - git_path
     - git_sha
     - git_file_name
-    - git_last_modified
-    - __sdc_row_number
     - date
     - states
     - positive
@@ -28,14 +30,16 @@ selected_tables:
     - git_owner
     - git_html_url
   c19_trk_us_population_counties:
+    primary_key:
+    - __sdc_row_number
+    replication_key:
+    - git_last_modified
     selected_columns:
     - git_repository
     - git_url
     - git_path
     - git_sha
     - git_file_name
-    - git_last_modified
-    - __sdc_row_number
     - state
     - county
     - state_name
@@ -46,14 +50,16 @@ selected_tables:
     - git_owner
     - git_html_url
   c19_trk_us_population_states:
+    primary_key:
+    - __sdc_row_number
+    replication_key:
+    - git_last_modified
     selected_columns:
     - git_repository
     - git_url
     - git_path
     - git_sha
     - git_file_name
-    - git_last_modified
-    - __sdc_row_number
     - state
     - state_name
     - geo_id
@@ -63,14 +69,16 @@ selected_tables:
     - git_owner
     - git_html_url
   c19_trk_us_population_states_age_groups:
+    primary_key:
+    - __sdc_row_number
+    replication_key:
+    - git_last_modified
     selected_columns:
     - git_repository
     - git_url
     - git_path
     - git_sha
     - git_file_name
-    - git_last_modified
-    - __sdc_row_number
     - state
     - state_name
     - geo_id
@@ -81,14 +89,16 @@ selected_tables:
     - git_owner
     - git_html_url
   c19_trk_us_states_acs_health_insurance:
+    primary_key:
+    - __sdc_row_number
+    replication_key:
+    - git_last_modified
     selected_columns:
     - git_repository
     - git_url
     - git_path
     - git_sha
     - git_file_name
-    - git_last_modified
-    - __sdc_row_number
     - geo_id
     - state
     - state_name
@@ -106,14 +116,16 @@ selected_tables:
     - git_owner
     - git_html_url
   c19_trk_us_states_current:
+    primary_key:
+    - __sdc_row_number
+    replication_key:
+    - git_last_modified
     selected_columns:
     - git_repository
     - git_url
     - git_path
     - git_sha
     - git_file_name
-    - git_last_modified
-    - __sdc_row_number
     - state
     - positive
     - positive_score
@@ -137,14 +149,16 @@ selected_tables:
     - git_owner
     - git_html_url
   c19_trk_us_states_daily:
+    primary_key:
+    - __sdc_row_number
+    replication_key:
+    - git_last_modified
     selected_columns:
     - git_repository
     - git_url
     - git_path
     - git_sha
     - git_file_name
-    - git_last_modified
-    - __sdc_row_number
     - date
     - state
     - positive
@@ -165,14 +179,16 @@ selected_tables:
     - git_owner
     - git_html_url
   c19_trk_us_states_info:
+    primary_key:
+    - __sdc_row_number
+    replication_key:
+    - git_last_modified
     selected_columns:
     - git_repository
     - git_url
     - git_path
     - git_sha
     - git_file_name
-    - git_last_modified
-    - __sdc_row_number
     - state
     - covid19_site_old
     - covid19_site
@@ -187,14 +203,16 @@ selected_tables:
     - git_owner
     - git_html_url
   c19_trk_us_states_kff_hospital_beds:
+    primary_key:
+    - __sdc_row_number
+    replication_key:
+    - git_last_modified
     selected_columns:
     - git_repository
     - git_url
     - git_path
     - git_sha
     - git_file_name
-    - git_last_modified
-    - __sdc_row_number
     - state
     - state_name
     - state_local_government
@@ -205,14 +223,16 @@ selected_tables:
     - git_owner
     - git_html_url
   eu_daily:
+    primary_key:
+    - git_path
+    - __sdc_row_number
+    replication_key:
+    - git_last_modified
     selected_columns:
     - git_repository
     - git_url
-    - git_path
     - git_sha
     - git_file_name
-    - git_last_modified
-    - __sdc_row_number
     - date
     - datetime
     - country
@@ -236,14 +256,16 @@ selected_tables:
     - git_owner
     - git_html_url
   eu_ecdc_daily:
+    primary_key:
+    - git_path
+    - __sdc_row_number
+    replication_key:
+    - git_last_modified
     selected_columns:
     - git_repository
     - git_url
-    - git_path
     - git_sha
     - git_file_name
-    - git_last_modified
-    - __sdc_row_number
     - date
     - datetime
     - country
@@ -253,14 +275,16 @@ selected_tables:
     - git_owner
     - git_html_url
   italy_national_daily:
+    primary_key:
+    - git_path
+    - __sdc_row_number
+    replication_key:
+    - git_last_modified
     selected_columns:
     - git_repository
     - git_url
-    - git_path
     - git_sha
     - git_file_name
-    - git_last_modified
-    - __sdc_row_number
     - date
     - datetime
     - date_of_notification
@@ -281,14 +305,16 @@ selected_tables:
     - git_owner
     - git_html_url
   italy_provincial_daily:
+    primary_key:
+    - git_path
+    - __sdc_row_number
+    replication_key:
+    - git_last_modified
     selected_columns:
     - git_repository
     - git_url
-    - git_path
     - git_sha
     - git_file_name
-    - git_last_modified
-    - __sdc_row_number
     - date
     - datetime
     - date_of_notification
@@ -307,14 +333,16 @@ selected_tables:
     - git_owner
     - git_html_url
   italy_regional_daily:
+    primary_key:
+    - git_path
+    - __sdc_row_number
+    replication_key:
+    - git_last_modified
     selected_columns:
     - git_repository
     - git_url
-    - git_path
     - git_sha
     - git_file_name
-    - git_last_modified
-    - __sdc_row_number
     - date
     - datetime
     - date_of_notification
@@ -339,14 +367,16 @@ selected_tables:
     - git_owner
     - git_html_url
   jh_csse_daily:
+    primary_key:
+    - git_path
+    - __sdc_row_number
+    replication_key:
+    - git_last_modified
     selected_columns:
     - git_repository
     - git_url
-    - git_path
     - git_sha
     - git_file_name
-    - git_last_modified
-    - __sdc_row_number
     - date
     - datetime
     - province_state
@@ -368,14 +398,16 @@ selected_tables:
     - git_owner
     - git_html_url
   neherlab_case_counts:
+    primary_key:
+    - git_path
+    - __sdc_row_number
+    replication_key:
+    - git_last_modified
     selected_columns:
     - git_repository
     - git_url
-    - git_path
     - git_sha
     - git_file_name
-    - git_last_modified
-    - __sdc_row_number
     - location
     - date
     - datetime
@@ -388,14 +420,16 @@ selected_tables:
     - git_owner
     - git_html_url
   neherlab_country_codes:
+    primary_key:
+    - __sdc_row_number
+    replication_key:
+    - git_last_modified
     selected_columns:
     - git_repository
     - git_url
     - git_path
     - git_sha
     - git_file_name
-    - git_last_modified
-    - __sdc_row_number
     - name
     - alpha_2
     - alpha_3
@@ -411,14 +445,16 @@ selected_tables:
     - git_owner
     - git_html_url
   neherlab_icu_capacity:
+    primary_key:
+    - __sdc_row_number
+    replication_key:
+    - git_last_modified
     selected_columns:
     - git_repository
     - git_url
     - git_path
     - git_sha
     - git_file_name
-    - git_last_modified
-    - __sdc_row_number
     - country
     - acute_care
     - acute_care_per_100k
@@ -432,14 +468,16 @@ selected_tables:
     - git_owner
     - git_html_url
   neherlab_population:
+    primary_key:
+    - __sdc_row_number
+    replication_key:
+    - git_last_modified
     selected_columns:
     - git_repository
     - git_url
     - git_path
     - git_sha
     - git_file_name
-    - git_last_modified
-    - __sdc_row_number
     - name
     - population
     - country
@@ -452,14 +490,16 @@ selected_tables:
     - git_owner
     - git_html_url
   nytimes_us_counties:
+    primary_key:
+    - __sdc_row_number
+    replication_key:
+    - git_last_modified
     selected_columns:
     - git_repository
     - git_url
     - git_path
     - git_sha
     - git_file_name
-    - git_last_modified
-    - __sdc_row_number
     - date
     - datetime
     - county
@@ -472,14 +512,16 @@ selected_tables:
     - git_owner
     - git_html_url
   nytimes_us_states:
+    primary_key:
+    - __sdc_row_number
+    replication_key:
+    - git_last_modified
     selected_columns:
     - git_repository
     - git_url
     - git_path
     - git_sha
     - git_file_name
-    - git_last_modified
-    - __sdc_row_number
     - date
     - datetime
     - state

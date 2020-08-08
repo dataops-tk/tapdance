@@ -1,11 +1,9 @@
 """tapdance.docker - Module for containerization and image build functions."""
 
-import os
-import sys
-from typing import List
+from typing import List, Optional, Tuple
 
 # import dock_r
-from logless import get_logger, logged_block
+from logless import get_logger
 import runnow
 import uio
 import yaml
@@ -91,7 +89,9 @@ BASE_DOCKER_REPO = "dataopstk/tapdance"
 #     return True
 
 
-def _get_docker_tap_image(tap_exe=None, target_exe=None):
+def _get_docker_tap_image(
+    tap_exe: Optional[str] = None, target_exe: Optional[str] = None
+) -> str:
     if not tap_exe and not target_exe:
         raise ValueError("At least one value required of: tap_exe, target_exe")
     if target_exe:
@@ -104,7 +104,9 @@ def _get_docker_tap_image(tap_exe=None, target_exe=None):
     return f"{BASE_DOCKER_REPO}:target-{target_alias}"
 
 
-def _get_plugins_list(plugins_index=None):
+def _get_plugins_list(
+    plugins_index: Optional[str] = None,
+) -> List[Tuple[str, str, str]]:
     plugins_index = plugins_index or SINGER_PLUGINS_INDEX
     if not uio.file_exists(plugins_index):
         raise RuntimeError(
@@ -125,8 +127,8 @@ def _get_plugins_list(plugins_index=None):
 
 
 def _build_all_standalone(
-    source_image: str = None,
-    plugins_index: str = None,
+    source_image: Optional[str] = None,
+    plugins_index: Optional[str] = None,
     push: bool = False,
     pre: bool = False,
     ignore_cache: bool = False,
@@ -168,17 +170,23 @@ def _build_all_standalone(
     return created_images
 
 
-def _get_plugin_info(plugin_id, plugins_index=None):
+def _get_plugin_info(
+    plugin_id: str, plugins_index: Optional[str] = None
+) -> Tuple[str, str, str]:
     plugins = _get_plugins_list(plugins_index)
     for name, source, alias in plugins:
         if (alias or name) == plugin_id:
             return (name, source, alias)
-    raise ValueError(f"Could not file a plugin called '{plugin_id}'")
+    raise ValueError(f"Could not locate the plugin called '{plugin_id}'")
 
 
 def _build_all_composite(
-    source_image=None, plugins_index=None, push=False, pre=False, ignore_cache=False
-):
+    source_image: Optional[str] = None,
+    plugins_index: Optional[str] = None,
+    push: bool = False,
+    pre: bool = False,
+    ignore_cache: bool = False,
+) -> List[str]:
     plugins = _get_plugins_list(plugins_index)
     created_images = []
     for tap_name, tap_source, tap_alias in plugins:
@@ -214,14 +222,14 @@ def _build_all_composite(
 
 
 def _build_plugin_image(
-    plugin_name,
-    source,
-    alias,
+    plugin_name: str,
+    source: str,
+    alias: str,
     source_image=None,
     push=False,
     pre=False,
     ignore_cache=False,
-):
+) -> str:
     source = source or plugin_name
     alias = alias or plugin_name
     image_name = f"{BASE_DOCKER_REPO}:{alias}"
@@ -253,15 +261,15 @@ def _build_plugin_image(
 
 
 def _build_composite_image(
-    tap_alias,
-    target_alias,
+    tap_alias: str,
+    target_alias: str,
     *,
     push: bool = False,
     pre: bool = False,
     ignore_cache: bool = False,
     has_custom_tap: bool,
     has_custom_target: bool,
-):
+) -> str:
     if has_custom_tap and has_custom_target:
         raise NotImplementedError(
             "Cannot combine a custom tap ('tap-{tap_alias}') "
@@ -295,7 +303,7 @@ def _build_composite_image(
     return image_name
 
 
-def _push(image_name):
+def _push(image_name) -> None:
     runnow.run(f"docker push {image_name}")
 
 
@@ -305,7 +313,7 @@ def build_image(
     push: bool = False,
     pre: bool = False,
     ignore_cache: bool = False,
-):
+) -> None:
     """Build a single image.
 
     If tap and target are both provided, any required upstream images will be built as well.
@@ -382,7 +390,9 @@ def build_image(
         )
 
 
-def build_all_images(push: bool = False, pre: bool = False, ignore_cache: bool = False):
+def build_all_images(
+    push: bool = False, pre: bool = False, ignore_cache: bool = False
+) -> List[str]:
     """
     Build all images.
 
@@ -390,5 +400,6 @@ def build_all_images(push: bool = False, pre: bool = False, ignore_cache: bool =
     :param pre: Create and publish pre-release builds
     :param ignore_cache: True to build images without cached image layers. (default: {False})
     """
-    _build_all_standalone(push=push, pre=pre, ignore_cache=ignore_cache)
-    _build_all_composite(push=push, pre=pre, ignore_cache=ignore_cache)
+    built_images = _build_all_standalone(push=push, pre=pre, ignore_cache=ignore_cache)
+    built_images += _build_all_composite(push=push, pre=pre, ignore_cache=ignore_cache)
+    return built_images
