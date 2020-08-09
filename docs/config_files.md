@@ -6,15 +6,15 @@ access settings and authorization credentials by means of a `config.json` file.
 When run via command line, Tapdance expects that both of the following files exist,
 relative to the working directory when tapdance is executed:
 
-- .secrets/tap-{tap-id}-config.json
-- .secrets/target-{target-id}-config.json
+- `.secrets/tap-{tap-id}-config.json`
+- `.secrets/target-{target-id}-config.json`
 
 For example, if the current working directory is `c:\Files\my-project`, the tap is
 `tap-covid-19`, and the target is `target-snowflake`, then Tapdance will look for the
 files:
 
-- `c:\Files\my-project\.secrets\covid-19.config\tap-covid-19.json`
-- `c:\Files\my-project\.secrets\covid-19.config\target-snowflake.json`
+- `c:\Files\my-project\.secrets\tap-covid-19.json`
+- `c:\Files\my-project\.secrets\target-snowflake.json`
 
 Notes:
 
