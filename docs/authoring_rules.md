@@ -21,6 +21,9 @@ Notes and guidelines:
   "*" wildcards. Regex expressions must be bordered by enveloping slashes (`/`), and are
   only valid in column names. For example, the exclusion rule `!*./credit.*card.*/` will
   exclude `account.CreditCard`, `cust.credit_card`, and also `acct.credit_card_number`.
+- If you get warnings about primary keys not being automatically detected, you can 
+  denote primary key fields by appending the hint `-> primary-key` after the column 
+  name. Ex: `account.id -> primary-key`
 
 Planned for V2:
 - Columns prefixed with a tilde '~' should be obfuscated
