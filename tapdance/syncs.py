@@ -220,12 +220,12 @@ def _sync_one_table(
     )["table_state_file"]
     tap_args = f"--config {config_file} --catalog {table_catalog_file}"
     if uio.file_exists(table_state_file):
+        local_state_file_in = os.path.join(
+            uio.get_temp_dir(), f"{tap_name}-{table_name}-state.json"
+        )
         if not uio.get_text_file_contents(table_state_file):
             logging.warning(f"Ignoring blank state file from '{table_state_file}'.")
         else:
-            local_state_file_in = os.path.join(
-                uio.get_temp_dir(), f"{tap_name}-{table_name}-state.json"
-            )
             states.make_aggregate_state_file(table_state_file, local_state_file_in)
             tap_args += f" --state {local_state_file_in}"
         local_state_file_out = (
