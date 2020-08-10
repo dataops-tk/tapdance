@@ -106,15 +106,17 @@ _The plan.yml file describes which columns and tables will be included, comparin
 tapdance plan covid-19
 ```
 
+- For help, including a explanation of all optional parameters, run: `tapdance plan --help`
+
 **Test the sync process locally:**
 
 ```bash
 tapdance sync covid-19
 ```
 
-- _When no target is specified, tapdance will default to the `target-csv` plugin, which
-  simply saves the data files locally in CSV format. It is a simple CSV for testing, since
-  it does not require configuring any credentials._
+- Tapdance will use [local CSV](https://github.com/singer-io/target-csv) as the default
+  target if not other target is specified.
+- For help, including a explanation of all optional parameters, run: `tapdance sync --help`
 
 **Sync data to your S3 data lake:**
 
