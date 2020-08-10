@@ -247,16 +247,15 @@ def get_table_list(
     return list_of_tables
 
 
-@logged("updating plan file for 'tap-{tap_name}'")
 def plan(
     tap_name: str,
     *,
+    dockerized: bool = None,
     rescan: bool = None,
+    tap_exe: str = None,
     taps_dir: str = None,
     config_dir: str = None,
     config_file: str = None,
-    dockerized: bool = None,
-    tap_exe: str = None,
     replication_strategy: str = "INCREMENTAL",
 ) -> None:
     """Perform all actions necessary to prepare (plan) for a tap execution.
@@ -271,26 +270,25 @@ def plan(
 
     Parameters:
     -----------
-    tap_name : str
+    tap_name : {str}
         The name of the tap without the 'tap-' prefix.
-    rescan : bool, optional
-        True to force a rescan and replace existing metadata. (default: False)
-    taps_dir: str, optional
+    dockerized : {bool}
+        If specified, will override the default behavior for the local platform.
+    tap_exe : {str}
+        Specifies the tap executable, if different from `tap-{tap_name}`.
+    rescan : {bool}
+        True to force a rescan and replace existing metadata.
+    taps_dir: {str}
         The directory containing the rules file.
         (Default=cwd)
-        (e.g. `{tap-name}.rules.txt`).
-    config_dir: str, optional
+    config_dir: {str}
         The default location of config, catalog and other potentially sensitive
         information. (Recommended to be excluded from source control.)
         (Default="${taps_dir}/.secrets")
-    config_file : str, optional
+    config_file : {str}
         The location of the JSON config file which contains config for the specified
         plugin. (Default=f"${config_dir}/${plugin_name}-config.json")
-    dockerized : bool, optional
-        If specified, will override the default behavior for the local platform.
-    tap_exe : str, optional
-        Specifies the tap executable, if different from `tap-{tap_name}`.
-    replication_strategy : str, optional
+    replication_strategy : {str}
         One of "FULL_TABLE", "INCREMENTAL", or "LOG_BASED"; by default "INCREMENTAL"
 
     Raises
@@ -301,6 +299,8 @@ def plan(
         Raised if files do not exist in default locations, or if paths provided do not
         point to valid files.
     """
+    config.print_version()
+
     if replication_strategy not in ["FULL_TABLE", "INCREMENTAL", "LOG_BASED"]:
         raise ValueError(
             f"Replication strategy {replication_strategy} not supported. Expected: "
