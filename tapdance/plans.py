@@ -49,6 +49,7 @@ def _discover(
         cdw = os.getcwd().replace("\\", "/")
         config_file = os.path.relpath(config_file).replace("\\", "/")
         config_file = f"/home/local/{config_file}"
+        _, _ = runnow.run(f"docker pull {img}")
         _, output_text = runnow.run(
             f"docker run --rm -it "
             f"-v {cdw}:/home/local "
@@ -402,24 +403,24 @@ def _make_plan_file_text(
             and col not in replication_key_cols
         ]
         ignored_cols = [col for col, selected in matches[table].items() if not selected]
-        file_text += f"{'  ' * 1}{table}:\n"
-        file_text += f"{'  ' * 2}primary_key:\n"
+        file_text += f"{' ' * 2}{table}:\n"
+        file_text += f"{' ' * 4}primary_key:\n"
         for col in primary_key_cols:
-            file_text += f"{'  ' * 2}- {col}\n"
-        file_text += f"{'  ' * 2}replication_key:\n"
+            file_text += f"{' ' * 6}- {col}\n"
+        file_text += f"{' ' * 4}replication_key:\n"
         for col in replication_key_cols:
-            file_text += f"{'  ' * 2}- {col}\n"
-        file_text += f"{'  ' * 2}selected_columns:\n"
+            file_text += f"{' ' * 6}- {col}\n"
+        file_text += f"{' ' * 4}selected_columns:\n"
         for col in included_cols:
-            file_text += f"{'  ' * 2}- {col}\n"
+            file_text += f"{' ' * 6}- {col}\n"
         if ignored_cols:
-            file_text += f"{'  ' * 2}ignored_columns:\n"
+            file_text += f"{' ' * 4}ignored_columns:\n"
             for col in ignored_cols:
-                file_text += f"{'  ' * 2}- {col}\n"
+                file_text += f"{' ' * 6}- {col}\n"
     if excluded_tables_list:
         file_text += "ignored_tables:\n"
         for table in sorted(excluded_tables_list):
-            file_text += f"{'  ' * 1}- {table}\n"
+            file_text += f"{' ' * 2}- {table}\n"
     return file_text
 
 
