@@ -317,7 +317,7 @@ def plan(
     # Initialize paths
     taps_dir = config.get_taps_dir(taps_dir)
     config_required = True
-    if config_file and config_file.lower() == "False":
+    if (config_file is not None) and str(config_file).lower() == "false":
         config_file = None
         config_required = False
     config_file = config.get_config_file(
