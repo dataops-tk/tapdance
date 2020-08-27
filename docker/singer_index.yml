@@ -9,7 +9,7 @@ singer-taps:
   - { name: tap-adwords }
   - { name: tap-covid-19 }
   - { name: tap-dynamodb,   source: git+https://github.com/rpaterson/tap-dynamodb@auth }
-  - { name: tap-exchangeratesapi }
+  - { name: tap-exchangeratesapi source: git+https://github.com/aaronsteers/tap-exchangeratesapi@feature/discovery } # https://github.com/singer-io/tap-exchangeratesapi/pull/8
   - { name: tap-jira }
   - { name: tap-kafka,      source: pipelinewise-tap-kafka }
   - { name: tap-mssql,      source: tap-mssql.Dockerfile }
