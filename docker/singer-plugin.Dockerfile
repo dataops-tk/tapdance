@@ -33,7 +33,7 @@ ENV PATH="/venv/${PLUGIN_ALIAS}:${PATH}"
 RUN test -e $(which ${PLUGIN_ALIAS}) || exit 1
 # RUN ${PLUGIN_ALIAS} --help
 
-RUN echo "#!bin/bash\n\n${PLUGIN_ALIAS} \$@\n" > bootstrap.sh
-RUN chmod 777 bootstrap.sh
+RUN echo "#!bin/bash\n\n${PLUGIN_ALIAS} \$@\n" > /home/bootstrap.sh
+RUN chmod 777 /home/bootstrap.sh
 
-ENTRYPOINT [ "./bootstrap.sh" ]
+ENTRYPOINT [ "/home/bootstrap.sh" ]
