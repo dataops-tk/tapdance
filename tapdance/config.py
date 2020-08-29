@@ -27,6 +27,20 @@ ENV_TAP_CONFIG_DIR = "TAP_CONFIG_DIR"
 ENV_TAP_STATE_FILE = "TAP_STATE_FILE"
 
 
+def print_version():
+    """Print the tapdance version number."""
+    try:
+        from importlib import metadata
+    except ImportError:
+        # Running on pre-3.8 Python; use importlib-metadata package
+        import importlib_metadata as metadata
+    try:
+        version = metadata.version("tapdance")
+    except metadata.PackageNotFoundError:
+        version = "[could not be detected]"
+    print(f"tapdance version {version}")
+
+
 @logged(
     "getting '{plugin_name}' config file using: config_dir={config_dir}, "
     "config_file={config_file}, required={required}",
