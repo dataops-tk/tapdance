@@ -301,12 +301,15 @@ def plan(
         Raised if files do not exist in default locations, or if paths provided do not
         point to valid files.
     """
+    tap_env_conf = config.get_plugin_settings_from_env(f"tap-{tap_name}")
+    config_file = tap_env_conf.get("CONFIG_FILE", config_file)
+    tap_exe = tap_exe or tap_env_conf.get("EXE", f"tap-{tap_name}")
+
     if replication_strategy not in ["FULL_TABLE", "INCREMENTAL", "LOG_BASED"]:
         raise ValueError(
             f"Replication strategy {replication_strategy} not supported. Expected: "
             "FULL_TABLE, INCREMENTAL, or LOG_BASED"
         )
-    tap_exe = tap_exe or config.get_exe(f"tap-{tap_name}")
     if (dockerized is None) and (uio.is_windows() or uio.is_mac()):
         dockerized = True
         logging.info(

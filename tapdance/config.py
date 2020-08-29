@@ -27,6 +27,43 @@ ENV_TAP_CONFIG_DIR = "TAP_CONFIG_DIR"
 ENV_TAP_STATE_FILE = "TAP_STATE_FILE"
 
 
+def get_plugin_settings_from_env(
+    plugin_name: str, exclude_meta: bool = False
+) -> Dict[str, Any]:
+    """Get all the settings from env vars which match the plugin prefix.
+
+    Parameters
+    ----------
+    plugin_name : str
+        The name of the plugin, including the 'tap-' or 'target-' prefix
+    exclude_meta : bool, optional
+        True to ignore UPPER_CASE settings, which are reserved for the orchestrator,
+        by default false
+
+    Returns
+    -------
+    Dict[str, Any]
+        A dictionary of setting values.
+    """
+    conf_dict: Dict[str, Any] = {}
+    for k, v in os.environ.items():
+        prefix = f"{plugin_name.replace('-', '_').upper()}_"
+        if k.startswith(prefix):
+            logging.debug(f"Parsing env variable '{k}' for '{plugin_name}'...")
+            setting_name = k.split(prefix)[1]
+            if setting_name.upper() != setting_name or not exclude_meta:
+                # Ensure truthinesss and falseness are maintained
+                if str(v).lower() == "false":
+                    conf_dict[setting_name] = False
+                elif str(v).lower() == "true":
+                    conf_dict[setting_name] = True
+                elif str(v) == "0":
+                    conf_dict[setting_name] = 0
+                else:
+                    conf_dict[setting_name] = v
+    return conf_dict
+
+
 @logged(
     "getting '{plugin_name}' config file using: config_dir={config_dir}, "
     "config_file={config_file}, required={required}",
@@ -62,21 +99,9 @@ def get_config_file(
         use_tmp_file = True
 
     # Parse settings and secrets from environment variables
-    for k, v in os.environ.items():
-        prefix = f"{plugin_name.replace('-', '_').upper()}_"
-        if k.startswith(prefix) and not k.endswith("_EXE"):
-            logging.debug(f"Parsing env variable '{k}' for '{plugin_name}'...")
-            setting_name = k.split(prefix)[1]
-            # Ensure truthinesss and falseness are maintained
-            if str(v).lower() == "false":
-                conf_dict[setting_name] = False
-            elif str(v).lower() == "true":
-                conf_dict[setting_name] = True
-            elif str(v) == "0":
-                conf_dict[setting_name] = 0
-            else:
-                conf_dict[setting_name] = v
-            use_tmp_file = True
+    conf_dict.update(get_plugin_settings_from_env(plugin_name, exclude_meta=True))
+    if conf_dict:
+        use_tmp_file = True
     if "-".join(plugin_name.split("-")[1:]).upper() in S3_TARGET_IDS:
         conf_dict = _inject_s3_config_creds(plugin_name, conf_dict)
         use_tmp_file = True
@@ -93,29 +118,6 @@ def get_config_file(
 
 def get_pipeline_version_number() -> str:
     return os.environ.get(ENV_PIPELINE_VERSION_NUMBER, "1")
-
-
-def get_exe(tap_or_target_id: str) -> str:
-    """Get the exe for the tap or target.
-
-    Parameters
-    ----------
-    tap_or_target_id : str
-        The tap or target ID, including the tap-/target- prefix.
-
-    Returns
-    -------
-    str
-        The exe to use.
-    """
-    env_var = f"{tap_or_target_id.upper().replace('-', '_')}_EXE"
-    if env_var in os.environ:
-        result = os.environ[env_var]
-        logging.info(f"Found exe '{result}' for '{tap_or_target_id}' in env variable.")
-    else:
-        result = tap_or_target_id
-        logging.info(f"Defaulting to exe='{tap_or_target_id}' from tap name.")
-    return result
 
 
 def get_state_file_path(required: bool = True) -> Optional[str]:
