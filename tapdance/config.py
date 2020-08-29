@@ -1,4 +1,4 @@
-"""tapdance.paths - Helper functions for dealing with paths."""
+"""tapdance.config - Helper functions for dealing with paths."""
 
 import json
 import os
@@ -63,7 +63,8 @@ def get_plugin_settings_from_env(
                     conf_dict[setting_name] = v
     return conf_dict
 
-  def print_version():
+
+def print_version():
     """Print the tapdance version number."""
     try:
         from importlib import metadata
