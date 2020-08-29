@@ -1,74 +1,84 @@
 """tapdance.syncs - Module containing the sync() function and sync helper functions."""
 
 import os
-from typing import List
+from typing import List, Optional
 
 import uio
 import runnow
 from logless import get_logger, logged
-
 from tapdance import config, docker, plans, states
 
 logging = get_logger("tapdance")
 
 
-@logged("syncing '{table_name or 'all tables'}' from '{tap_name}' to '{target_name}'")
 def sync(
     tap_name: str,
     target_name: str = "csv",
     table_name: str = "*",
-    taps_dir: str = None,
+    taps_dir: Optional[str] = None,
     *,
-    tap_exe: str = None,
-    target_exe: str = None,
+    dockerized: Optional[bool] = None,
     rescan: bool = False,
-    dockerized: bool = None,
-    config_dir: str = None,
-    config_file: str = None,
-    catalog_dir: str = None,
-    target_config_file: str = None,
-    state_file: str = None,
-    exclude_tables: List[str] = None,
+    tap_exe: Optional[str] = None,
+    target_exe: Optional[str] = None,
+    config_dir: Optional[str] = None,
+    config_file: Optional[str] = None,
+    catalog_dir: Optional[str] = None,
+    target_config_file: Optional[str] = None,
+    state_file: Optional[str] = None,
+    exclude_tables: Optional[List[str]] = None,
 ) -> None:
     """
     Synchronize data from tap to target.
 
-    Arguments:
+    Parameters:
     ----------
-    - tap_name {str} -- The name/alias of the source tap, without the `tap-` prefix.
-
-    Keyword Arguments:
-    ------------------
-    - target_name {str} -- The name/alias of the target, without the `tap-` prefix.
-      (default: {"csv"})
-    - table_name {str} -- The name of the table to sync. To sync multiple tables, specify
-      a comma-separated list of tables surrounded by queare brackets (e.g. "[tb1,tbl2]"),
-      or use "*" to sync all table.
-      (default: {"*"})
-    - rescan {bool} -- Optional. True to force a rescan and replace existing metadata.
-      (default: False)
-    - dockerized {bool} -- Optional. True or False to force whether the command is run
-      dockerized. If omitted, the best option will be selected automatically.
-    - taps_dir {str} -- Optional. The directory containing the rules file. (Default=cwd)
-      (`{tap-name}.rules.txt`).
-    - config_dir {str} -- Optional. The default location of config, catalog and other
-      potentially sensitive information. (Recommended to be excluded from source control.)
-      (Default="${taps_dir}/.secrets")
-    - config_file {str} -- Optional. The location of the JSON config file which
-      contains config for the specified tap or 'False' to only pull settings from
-      environment variables. Default path is f"${config_dir}/${plugin_name}-config.json".
-
-    - catalog_dir {str} -- Optional. The output directory to be used for saving catalog
-      files. If not provided, a path will be generated automatically within `.output` or
-      a path specified by the `TAP_SCRATCH_DIR` environment variable.
-    - target_config_file {str} -- Optional. The location of the JSON config file which
-      contains config for the specified target or 'False' to only pull settings from
-      environment variables. Default path is f"${config_dir}/${plugin_name}-config.json".
-    - state_file {str} -- Optional. The path to a state file. If not provided, a state
-      file path will be generated automatically within `catalog_dir`.
-    - exclude_table_names {List(str)} -- Optional. A list of tables to exclude. Ignored
-      if table_name arg is not "*".
+    tap_name : {str}
+        The name/alias of the source tap, without the `tap-` prefix.
+    target_name : {str}
+        The name/alias of the target, without the `tap-` prefix.
+        (Default="csv")
+    table_name : {str}
+        The name of the table to sync. To sync multiple tables, specify
+        a comma-separated list of tables surrounded by queare brackets (e.g. "[tb1,tbl2]"),
+        or use "*" to sync all table.
+        (Default="*")
+    dockerized : {bool}
+        True or False to force whether the command is run
+        dockerized. If omitted, the best option will be selected automatically.
+    rescan : {bool}
+        True to force a rescan and replace existing metadata.
+    tap_exe : {str}
+        Overrides the tap executable, if different from `tap-{tap_name}`.
+    target_exe : {str}
+        Overrides the target executable, if different from `target-{tap_name}`.
+    taps_dir : {str}
+        The directory containing the rules file. (Default=cwd)
+    config_dir : {str}
+        The default location of config, catalog and other
+        potentially sensitive information. (Recommended to be excluded from source control.)
+        (Default="${taps_dir}/.secrets")
+    config_file : {str}
+        The location of the JSON config file which
+        contains config for the specified tap or 'False' to only pull settings from
+        environment variables. Default path is f"${config_dir}/${plugin_name}-config.json".
+    catalog_dir : {str}
+        The output directory to be used for saving catalog
+        files. If not provided, a path will be generated automatically within `.output` or
+        a path specified by the `TAP_SCRATCH_DIR` environment variable.
+    target_config_file : {str}
+        The location of the JSON config file which
+        contains config for the specified target or 'False' to only pull settings from
+        environment variables. Default path is f"${config_dir}/${plugin_name}-config.json".
+    state_file : {str}
+        The path to a state file. If not provided, a state
+        file path will be generated automatically within `catalog_dir`.
+    exclude_tables: {List(str)}
+        A list of tables to exclude. Ignored
+        if table_name arg is not "*".
     """
+    config.print_version()
+
     tap_env_conf = config.get_plugin_settings_from_env(f"tap-{tap_name}")
     config_file = tap_env_conf.get("CONFIG_FILE", config_file)
     tap_exe = tap_exe or tap_env_conf.get("EXE", f"tap-{tap_name}") or f"tap-{tap_name}"
@@ -203,6 +213,7 @@ def _dockerize_cli_args(arg_str: str, container_volume_root="/home/local") -> st
     return " ".join(newargs)
 
 
+@logged("running sync of table '{table_name}' from '{tap_name}'")
 def _sync_one_table(
     tap_name: str,
     table_name: str,
@@ -226,12 +237,12 @@ def _sync_one_table(
     )["table_state_file"]
     tap_args = f"--config {config_file} --catalog {table_catalog_file}"
     if uio.file_exists(table_state_file):
+        local_state_file_in = os.path.join(
+            uio.get_temp_dir(), f"{tap_name}-{table_name}-state.json"
+        )
         if not uio.get_text_file_contents(table_state_file):
             logging.warning(f"Ignoring blank state file from '{table_state_file}'.")
         else:
-            local_state_file_in = os.path.join(
-                uio.get_temp_dir(), f"{tap_name}-{table_name}-state.json"
-            )
             states.make_aggregate_state_file(table_state_file, local_state_file_in)
             tap_args += f" --state {local_state_file_in}"
         local_state_file_out = (

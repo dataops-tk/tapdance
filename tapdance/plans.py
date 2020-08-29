@@ -49,6 +49,7 @@ def _discover(
         cdw = os.getcwd().replace("\\", "/")
         config_file = os.path.relpath(config_file).replace("\\", "/")
         config_file = f"/home/local/{config_file}"
+        _, _ = runnow.run(f"docker pull {img}")
         _, output_text = runnow.run(
             f"docker run --rm -it "
             f"-v {cdw}:/home/local "
@@ -247,16 +248,15 @@ def get_table_list(
     return list_of_tables
 
 
-@logged("updating plan file for 'tap-{tap_name}'")
 def plan(
     tap_name: str,
     *,
+    dockerized: bool = None,
     rescan: bool = None,
+    tap_exe: str = None,
     taps_dir: str = None,
     config_dir: str = None,
     config_file: str = None,
-    dockerized: bool = None,
-    tap_exe: str = None,
     replication_strategy: str = "INCREMENTAL",
 ) -> None:
     """Perform all actions necessary to prepare (plan) for a tap execution.
@@ -271,26 +271,25 @@ def plan(
 
     Parameters:
     -----------
-    tap_name : str
+    tap_name : {str}
         The name of the tap without the 'tap-' prefix.
-    rescan : bool, optional
-        True to force a rescan and replace existing metadata. (default: False)
-    taps_dir: str, optional
+    dockerized : {bool}
+        If specified, will override the default behavior for the local platform.
+    tap_exe : {str}
+        Specifies the tap executable, if different from `tap-{tap_name}`.
+    rescan : {bool}
+        True to force a rescan and replace existing metadata.
+    taps_dir: {str}
         The directory containing the rules file.
         (Default=cwd)
-        (e.g. `{tap-name}.rules.txt`).
-    config_dir: str, optional
+    config_dir: {str}
         The default location of config, catalog and other potentially sensitive
         information. (Recommended to be excluded from source control.)
         (Default="${taps_dir}/.secrets")
-    config_file : str, optional
+    config_file : {str}
         The location of the JSON config file which contains config for the specified
         plugin. (Default=f"${config_dir}/${plugin_name}-config.json")
-    dockerized : bool, optional
-        If specified, will override the default behavior for the local platform.
-    tap_exe : str, optional
-        Specifies the tap executable, if different from `tap-{tap_name}`.
-    replication_strategy : str, optional
+    replication_strategy : {str}
         One of "FULL_TABLE", "INCREMENTAL", or "LOG_BASED"; by default "INCREMENTAL"
 
     Raises
@@ -301,6 +300,8 @@ def plan(
         Raised if files do not exist in default locations, or if paths provided do not
         point to valid files.
     """
+    config.print_version()
+
     tap_env_conf = config.get_plugin_settings_from_env(f"tap-{tap_name}")
     config_file = tap_env_conf.get("CONFIG_FILE", config_file)
     tap_exe = tap_exe or tap_env_conf.get("EXE", f"tap-{tap_name}")
@@ -405,24 +406,24 @@ def _make_plan_file_text(
             and col not in replication_key_cols
         ]
         ignored_cols = [col for col, selected in matches[table].items() if not selected]
-        file_text += f"{'  ' * 1}{table}:\n"
-        file_text += f"{'  ' * 2}primary_key:\n"
+        file_text += f"{' ' * 2}{table}:\n"
+        file_text += f"{' ' * 4}primary_key:\n"
         for col in primary_key_cols:
-            file_text += f"{'  ' * 2}- {col}\n"
-        file_text += f"{'  ' * 2}replication_key:\n"
+            file_text += f"{' ' * 6}- {col}\n"
+        file_text += f"{' ' * 4}replication_key:\n"
         for col in replication_key_cols:
-            file_text += f"{'  ' * 2}- {col}\n"
-        file_text += f"{'  ' * 2}selected_columns:\n"
+            file_text += f"{' ' * 6}- {col}\n"
+        file_text += f"{' ' * 4}selected_columns:\n"
         for col in included_cols:
-            file_text += f"{'  ' * 2}- {col}\n"
+            file_text += f"{' ' * 6}- {col}\n"
         if ignored_cols:
-            file_text += f"{'  ' * 2}ignored_columns:\n"
+            file_text += f"{' ' * 4}ignored_columns:\n"
             for col in ignored_cols:
-                file_text += f"{'  ' * 2}- {col}\n"
+                file_text += f"{' ' * 6}- {col}\n"
     if excluded_tables_list:
         file_text += "ignored_tables:\n"
         for table in sorted(excluded_tables_list):
-            file_text += f"{'  ' * 1}- {table}\n"
+            file_text += f"{' ' * 2}- {table}\n"
     return file_text
 
 

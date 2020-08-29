@@ -63,6 +63,19 @@ def get_plugin_settings_from_env(
                     conf_dict[setting_name] = v
     return conf_dict
 
+  def print_version():
+    """Print the tapdance version number."""
+    try:
+        from importlib import metadata
+    except ImportError:
+        # Running on pre-3.8 Python; use importlib-metadata package
+        import importlib_metadata as metadata
+    try:
+        version = metadata.version("tapdance")
+    except metadata.PackageNotFoundError:
+        version = "[could not be detected]"
+    print(f"tapdance version {version}")
+
 
 @logged(
     "getting '{plugin_name}' config file using: config_dir={config_dir}, "
