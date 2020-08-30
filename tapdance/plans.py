@@ -247,6 +247,11 @@ def get_table_list(
     else:
         list_of_tables = [table_filter]
     if exclude_tables:
+        if exclude_tables[0] == "[":
+            # Remove square brackets and split the result on commas
+            exclude_tables = (
+                str(exclude_tables).replace("[", "").replace("]", "").split(",")
+            )
         logging.info(f"Table(s) to exclude from sync: {', '.join(exclude_tables)}")
         list_of_tables = [t for t in list_of_tables if t not in exclude_tables]
     return list_of_tables
