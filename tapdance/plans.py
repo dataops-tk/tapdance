@@ -109,20 +109,24 @@ def _validate_keys(table_object: dict, key_type: str):
     _ = _get_table_key_cols(key_type, table_object, warn_if_missing=True)
 
 
-def _get_table_key_cols(key_type: str, table_object: dict, warn_if_missing: bool):
+def _get_table_key_cols(
+    key_type: str, table_object: dict, warn_if_missing: bool, log_fn=None
+):
     result = []
     metadata_object = _get_stream_metadata_object(table_object)
     if key_type == "replication-key":
+        log_fn = log_fn or logging.debug
         if "valid-replication-keys" in metadata_object:
             result = metadata_object["valid-replication-keys"]
     elif key_type == "primary-key":
+        log_fn = log_fn or logging.warning
         if "table-key-properties" in metadata_object:
             result = metadata_object["table-key-properties"]
     else:
         raise ValueError("Expected key_type of 'primary-key' or 'replication-key'")
     if not result and warn_if_missing:
         table_name = table_object.get("stream", "(unknown stream)")
-        logging.warning(f"Could not locate '{key_type}' for '{table_name}'.")
+        log_fn(f"Could not locate '{key_type}' for '{table_name}'.")
     return result
 
 
