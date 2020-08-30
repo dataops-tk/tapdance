@@ -79,8 +79,17 @@ def sync(
     """
     config.print_version()
 
-    tap_exe = tap_exe or config.get_exe(f"tap-{tap_name}")
-    target_exe = target_exe or config.get_exe(f"target-{target_name}")
+    tap_env_conf = config.get_plugin_settings_from_env(f"tap-{tap_name}")
+    config_file = tap_env_conf.get("CONFIG_FILE", config_file)
+    tap_exe = tap_exe or tap_env_conf.get("EXE", f"tap-{tap_name}")
+
+    table_name = table_name or tap_env_conf.get("TABLE_NAME", None)
+    exclude_tables = exclude_tables or tap_env_conf.get("EXCLUDE_TABLES", None)
+
+    target_env_conf = config.get_plugin_settings_from_env(f"target-{target_name}")
+    target_config_file = target_config_file or target_env_conf.get("CONFIG_FILE", None)
+    target_exe = target_exe or target_env_conf.get("EXE", f"target-{target_name}")
+
     if dockerized is None:
         if uio.is_windows() or uio.is_mac():
             dockerized = True
