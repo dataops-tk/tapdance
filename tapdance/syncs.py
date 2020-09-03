@@ -142,11 +142,12 @@ def sync(
     if rescan or rules_file or not uio.file_exists(full_catalog_file):
         plans.plan(
             tap_name,
+            dockerized=dockerized,
+            rescan=rescan,
+            tap_exe=tap_exe,
             taps_dir=taps_dir,
             config_file=config_file,
             config_dir=catalog_dir,
-            rescan=rescan,
-            tap_exe=tap_exe,
         )
     list_of_tables = plans.get_table_list(
         table_filter=table_name,

@@ -23,6 +23,9 @@ SKIP_SENSELESS_VALIDATORS = (
     # These only fail when our source is internally incoherent, which alone
     # is almost never sufficient cause for failing the data extraction.
 )
+REMOVE_SPECIAL_CHARS = (
+    True  # Remove or replace special characters which are not permitted in most DBs.
+)
 
 
 def _is_valid_json(json_text: str):
@@ -390,6 +393,7 @@ def plan(
         output_file=selected_catalog_file,
         replication_strategy=replication_strategy,
         skip_senseless_validators=SKIP_SENSELESS_VALIDATORS,
+        remove_special_chars=REMOVE_SPECIAL_CHARS,
     )
     _validate_selected_catalog(tap_name, selected_catalog_file=selected_catalog_file)
 
@@ -437,6 +441,13 @@ def _make_plan_file_text(
 
 
 def _get_catalog_table_columns(table_object: dict) -> List[str]:
+    if "properties" not in table_object["schema"]:
+        if table_object["schema"].get("type", "") == "object":
+            return ["json_raw"]  # No columns defined; treat as a single json column
+        else:
+            raise ValueError(
+                f"Could not detect table columns from catalog table: {table_object}"
+            )
     return table_object["schema"]["properties"].keys()
 
 
@@ -450,6 +461,12 @@ def _get_stream_name(table_object: dict) -> dict:
     return table_object["stream"]
 
 
+def _get_table_name(table_object: dict) -> str:
+    return table_object.get(
+        "table_name", table_object.get("stream", table_object["tap_stream_id"])
+    )
+
+
 @logged(
     "selecting catalog metadata "
     "from '{tap_name}' source catalog file: {full_catalog_file}"
@@ -461,6 +478,7 @@ def _create_selected_catalog(
     output_file: str,
     replication_strategy: str,
     skip_senseless_validators: bool,
+    remove_special_chars: bool,
 ) -> None:
     taps_dir = config.get_taps_dir()
     catalog_dir = config.get_catalog_output_dir(tap_name, taps_dir)
@@ -486,6 +504,9 @@ def _create_selected_catalog(
                 _select_table_column(tbl, col_name, col_selected)
             if skip_senseless_validators:
                 _remove_senseless_validators(tbl)
+            if remove_special_chars:
+                if "-" in _get_table_name(tbl):
+                    tbl["table_name"] = _get_table_name(tbl).replace("-", "_")
             included_table_objects.append(tbl)
     catalog_new = {"streams": included_table_objects}
     with open(output_file, "w") as f:
@@ -532,6 +553,8 @@ def _select_table(tbl: dict, replication_strategy: str):
 
 
 def _remove_senseless_validators(tbl: dict) -> None:
+    if "properties" not in tbl["schema"]:
+        return
     for col, props in tbl["schema"]["properties"].items():
         for senseless in [
             "multipleOf",
