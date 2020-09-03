@@ -208,6 +208,19 @@ def get_catalog_output_dir(tap_name: str, taps_dir: str) -> str:
     return result
 
 
+def get_raw_catalog_file(catalog_dir: str, tap_name: str):
+    custom_catalog_path = f"{catalog_dir}/{tap_name}-catalog-custom.json"
+    catalog_file = f"{catalog_dir}/{tap_name}-catalog-raw.json"
+    if uio.file_exists(custom_catalog_path):
+        logging.info(f"Using custom catalog file: {custom_catalog_path}")
+        catalog_file = custom_catalog_path
+    elif uio.file_exists(catalog_file):
+        if uio.get_text_file_contents(catalog_file).strip() == "":
+            logging.info(f"Cleaning up empty catalog file: {catalog_file}")
+            uio.delete_file(catalog_file)
+    return catalog_file.replace("\\", "/")
+
+
 def get_rules_file(taps_dir: str, tap_name: str, required: bool = True):
     result = os.path.join(get_taps_dir(taps_dir), f"{tap_name}.rules.txt")
     if required and not uio.file_exists(result):

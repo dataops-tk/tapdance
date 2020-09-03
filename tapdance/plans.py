@@ -45,7 +45,7 @@ def _discover(
     dockerized: bool,
     tap_exe: str,
 ) -> None:
-    catalog_file = f"{catalog_dir}/{tap_name}-catalog-raw.json".replace("\\", "/")
+    catalog_file = config.get_raw_catalog_file(catalog_dir, tap_name)
     uio.create_folder(catalog_dir)
     img = f"{docker.BASE_DOCKER_REPO}:{tap_exe}"
     if dockerized:
@@ -346,17 +346,11 @@ def plan(
     if not uio.file_exists(config_file):
         raise FileExistsError(config_file)
     catalog_dir = config.get_catalog_output_dir(tap_name, taps_dir)
-    catalog_file = f"{catalog_dir}/{tap_name}-catalog-raw.json"
+    raw_catalog_file = config.get_raw_catalog_file(catalog_dir, tap_name)
     selected_catalog_file = f"{catalog_dir}/{tap_name}-catalog-selected.json"
     plan_file = config.get_plan_file(tap_name, taps_dir, required=False)
-    if (
-        uio.file_exists(catalog_file)
-        and uio.get_text_file_contents(catalog_file).strip() == ""
-    ):
-        logging.info(f"Cleaning up empty catalog file: {catalog_file}")
-        uio.delete_file(catalog_file)
 
-    if rescan or not uio.file_exists(catalog_file):
+    if rescan or not uio.file_exists(raw_catalog_file):
         # Run discover, if needed, to get catalog.json (raw)
         _discover(
             tap_name,
@@ -368,16 +362,16 @@ def plan(
 
     rules_file = config.get_rules_file(taps_dir, tap_name)
     matches, excluded_tables = _check_rules(
-        catalog_file=catalog_file, rules_file=rules_file
+        catalog_file=raw_catalog_file, rules_file=rules_file
     )
     primary_keys = _get_catalog_file_keys(
-        "primary-key", matches=matches, catalog_file=catalog_file
+        "primary-key", matches=matches, catalog_file=raw_catalog_file
     )
     primary_keys.update(
         _get_rules_file_keys("primary-key", matches=matches, rules_file=rules_file)
     )
     replication_keys = _get_catalog_file_keys(
-        "replication-key", matches=matches, catalog_file=catalog_file,
+        "replication-key", matches=matches, catalog_file=raw_catalog_file,
     )
     replication_keys.update(
         _get_rules_file_keys("replication-key", matches=matches, rules_file=rules_file,)
@@ -389,7 +383,7 @@ def plan(
     _create_selected_catalog(
         tap_name,
         plan_file=plan_file,
-        full_catalog_file=catalog_file,
+        raw_catalog_file=raw_catalog_file,
         output_file=selected_catalog_file,
         replication_strategy=replication_strategy,
         skip_senseless_validators=SKIP_SENSELESS_VALIDATORS,
@@ -469,12 +463,12 @@ def _get_table_name(table_object: dict) -> str:
 
 @logged(
     "selecting catalog metadata "
-    "from '{tap_name}' source catalog file: {full_catalog_file}"
+    "from '{tap_name}' source catalog file: {raw_catalog_file}"
 )
 def _create_selected_catalog(
     tap_name: str,
     plan_file: str,
-    full_catalog_file: str,
+    raw_catalog_file: str,
     output_file: str,
     replication_strategy: str,
     skip_senseless_validators: bool,
@@ -482,11 +476,8 @@ def _create_selected_catalog(
 ) -> None:
     taps_dir = config.get_taps_dir()
     catalog_dir = config.get_catalog_output_dir(tap_name, taps_dir)
-    source_catalog_path = full_catalog_file or os.path.join(
-        catalog_dir, "catalog-raw.json"
-    )
     output_file = output_file or os.path.join(catalog_dir, "selected-catalog.json")
-    catalog_full = json.loads(Path(source_catalog_path).read_text())
+    catalog_full = json.loads(Path(raw_catalog_file).read_text())
     plan_file = plan_file or config.get_plan_file(tap_name)
     plan = yaml.safe_load(uio.get_text_file_contents(plan_file))
     if ("selected_tables" not in plan) or (plan["selected_tables"] is None):
@@ -494,7 +485,20 @@ def _create_selected_catalog(
     included_table_objects = []
     for tbl in sorted(catalog_full["streams"], key=lambda x: _get_stream_name(x)):
         stream_name = _get_stream_name(tbl)
-        if stream_name in plan["selected_tables"].keys():
+        clean_table_name = stream_name
+        if remove_special_chars:
+            if "-" in _get_table_name(tbl):
+                clean_table_name = _get_table_name(tbl).replace("-", "_")
+        if (
+            stream_name in plan["selected_tables"].keys()
+            or clean_table_name in plan["selected_tables"].keys()
+        ):
+            if clean_table_name != stream_name:
+                logging.info(
+                    f"Replaced default table name '{stream_name}' "
+                    f"with '{clean_table_name}'"
+                )
+                tbl["table_name"] = clean_table_name
             _select_table(tbl, replication_strategy=replication_strategy)
             _set_catalog_file_keys(tbl, plan["selected_tables"][stream_name])
             for col_name in _get_catalog_table_columns(tbl):
@@ -504,9 +508,6 @@ def _create_selected_catalog(
                 _select_table_column(tbl, col_name, col_selected)
             if skip_senseless_validators:
                 _remove_senseless_validators(tbl)
-            if remove_special_chars:
-                if "-" in _get_table_name(tbl):
-                    tbl["table_name"] = _get_table_name(tbl).replace("-", "_")
             included_table_objects.append(tbl)
     catalog_new = {"streams": included_table_objects}
     with open(output_file, "w") as f:
