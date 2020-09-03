@@ -104,8 +104,8 @@ def sync(
     config_required = True
     target_config_required = True
     logging.info(
-        "Attempting to configure sync using config_file={config_file} and "
-        "target_config_file={target_config_file}."
+        f"Attempting to configure sync using config_file={config_file} and "
+        f"target_config_file={target_config_file}."
     )
     if (config_file is not None) and str(config_file).lower() == "false":
         logging.info("Skipping check for tap config (--config_file=False)")

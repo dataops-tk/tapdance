@@ -24,7 +24,7 @@ SKIP_SENSELESS_VALIDATORS = (
     # is almost never sufficient cause for failing the data extraction.
 )
 REMOVE_SPECIAL_CHARS = (
-    True  # Remove or replace special characters which are not permitted in most DBs.
+    False  # Remove or replace special characters which are not permitted in most DBs.
 )
 
 
@@ -91,6 +91,13 @@ def _check_rules(
         for line in uio.get_text_file_contents(rules_file).splitlines()
         if line.split("#")[0].rstrip()
     ]
+    declared_tables = set(
+        [
+            rule.split(".")[0].rstrip()
+            for rule in select_rules
+            if rule.split(".")[0].rstrip() and ("*" not in rule.split(".")[0].rstrip())
+        ]
+    )
     matches: Dict[str, dict] = {}
     excluded_table_list = []
     for table_name, table_object in _get_catalog_tables_dict(catalog_file).items():
@@ -105,6 +112,18 @@ def _check_rules(
                 )
         else:
             excluded_table_list.append(table_name)
+    for required_table in declared_tables:
+        if required_table not in matches.keys():
+            logging.warning(
+                f"The table {required_table} was declared in the rules file "
+                "but could not be found in the catalog."
+            )
+    for match, match_cols in matches.items():
+        if not match_cols:
+            logging.warning(
+                f"The table {match} was declared in the rules file "
+                "but did not match with any columns in the catalog."
+            )
     return matches, excluded_table_list
 
 
@@ -435,14 +454,20 @@ def _make_plan_file_text(
 
 
 def _get_catalog_table_columns(table_object: dict) -> List[str]:
+    col_names: List[str] = []
     if "properties" not in table_object["schema"]:
         if table_object["schema"].get("type", "") == "object":
-            return ["json_raw"]  # No columns defined; treat as a single json column
-        else:
-            raise ValueError(
-                f"Could not detect table columns from catalog table: {table_object}"
+            logging.warning(
+                "No properties defined, treating record as single json_raw column."
             )
-    return table_object["schema"]["properties"].keys()
+            col_names = ["json_raw"]
+    else:
+        col_names = table_object["schema"]["properties"].keys()
+    if not col_names:
+        raise ValueError(
+            f"Could not detect table columns from catalog table: {table_object}"
+        )
+    return col_names
 
 
 def _get_catalog_tables_dict(catalog_file: str) -> dict:
@@ -451,7 +476,7 @@ def _get_catalog_tables_dict(catalog_file: str) -> dict:
     return table_objects
 
 
-def _get_stream_name(table_object: dict) -> dict:
+def _get_stream_name(table_object: dict) -> str:
     return table_object["stream"]
 
 
@@ -485,25 +510,24 @@ def _create_selected_catalog(
     included_table_objects = []
     for tbl in sorted(catalog_full["streams"], key=lambda x: _get_stream_name(x)):
         stream_name = _get_stream_name(tbl)
-        clean_table_name = stream_name
+        table_name = stream_name
         if remove_special_chars:
             if "-" in _get_table_name(tbl):
-                clean_table_name = _get_table_name(tbl).replace("-", "_")
-        if (
-            stream_name in plan["selected_tables"].keys()
-            or clean_table_name in plan["selected_tables"].keys()
+                table_name = _get_table_name(tbl).replace("-", "_")
+        if (stream_name in plan["selected_tables"].keys()) or (
+            table_name in plan["selected_tables"].keys()
         ):
-            if clean_table_name != stream_name:
+            if table_name != stream_name:
                 logging.info(
                     f"Replaced default table name '{stream_name}' "
-                    f"with '{clean_table_name}'"
+                    f"with '{table_name}'"
                 )
-                tbl["table_name"] = clean_table_name
+                tbl["table_name"] = table_name
             _select_table(tbl, replication_strategy=replication_strategy)
             _set_catalog_file_keys(tbl, plan["selected_tables"][stream_name])
             for col_name in _get_catalog_table_columns(tbl):
-                col_selected = (
-                    col_name in plan["selected_tables"][stream_name]["selected_columns"]
+                col_selected = col_name in (
+                    plan["selected_tables"][stream_name]["selected_columns"] or []
                 )
                 _select_table_column(tbl, col_name, col_selected)
             if skip_senseless_validators:

@@ -235,9 +235,9 @@ def _inject_s3_config_creds(
         "aws_access_key_id" in config_defaults
         and "aws_secret_access_key" in config_defaults
     ):
-        logging.info("AWS creds captured from '{plugin_name}' config")
+        logging.info(f"AWS creds captured from '{plugin_name}' config")
         return config_defaults
-    logging.info("Scanning for AWS creds for '{plugin_name}' config...")
+    logging.info(f"Scanning for AWS creds for '{plugin_name}' config...")
     new_config = config_defaults.copy()
     (
         aws_access_key_id,
