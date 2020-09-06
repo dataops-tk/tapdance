@@ -23,9 +23,6 @@ SKIP_SENSELESS_VALIDATORS = (
     # These only fail when our source is internally incoherent, which alone
     # is almost never sufficient cause for failing the data extraction.
 )
-REMOVE_SPECIAL_CHARS = (
-    False  # Remove or replace special characters which are not permitted in most DBs.
-)
 SMALL_TABLE_THRESHOLD = 100000  # Warn if >= 10,000 rows and no replication key
 
 
@@ -275,6 +272,23 @@ def get_table_list(
     exclude_tables: Optional[Union[str, List[str]]],
     catalog_file: str,
 ) -> List[str]:
+    """Return a list of tables to be selected.
+
+    Parameters
+    ----------
+    table_filter : Optional[Union[str, List[str]]]
+        A list of tables, a string representing a list, a single table name, or "*"
+        for all tables.
+    exclude_tables : Optional[Union[str, List[str]]]
+        A list of tables or a string representing a list of tables.
+    catalog_file : str
+        The path to a catalog file.
+
+    Returns
+    -------
+    List[str]
+        A list of table names selected.
+    """
     if isinstance(table_filter, list):
         list_of_tables = table_filter
     elif table_filter is None or table_filter == "*":
@@ -414,7 +428,6 @@ def plan(
         output_file=selected_catalog_file,
         replication_strategy=replication_strategy,
         skip_senseless_validators=SKIP_SENSELESS_VALIDATORS,
-        remove_special_chars=REMOVE_SPECIAL_CHARS,
     )
     _validate_selected_catalog(tap_name, selected_catalog_file=selected_catalog_file)
 
@@ -505,7 +518,6 @@ def _create_selected_catalog(
     output_file: str,
     replication_strategy: str,
     skip_senseless_validators: bool,
-    remove_special_chars: bool,
 ) -> None:
     taps_dir = config.get_taps_dir()
     catalog_dir = config.get_catalog_output_dir(tap_name, taps_dir)
@@ -518,21 +530,9 @@ def _create_selected_catalog(
     included_table_objects = []
     for tbl in sorted(catalog_full["streams"], key=lambda x: _get_stream_name(x)):
         stream_name = _get_stream_name(tbl)
-        table_name = stream_name
-        if remove_special_chars:
-            if "-" in _get_table_name(tbl):
-                table_name = _get_table_name(tbl).replace("-", "_")
-        if (stream_name in plan["selected_tables"].keys()) or (
-            table_name in plan["selected_tables"].keys()
-        ):
-            if table_name != stream_name:
-                logging.info(
-                    f"Replaced default table name '{stream_name}' "
-                    f"with '{table_name}'"
-                )
-                tbl["table_name"] = table_name
-            _select_table(tbl, replication_strategy=replication_strategy)
+        if stream_name in plan["selected_tables"].keys():
             _set_catalog_file_keys(tbl, plan["selected_tables"][stream_name])
+            _select_table(tbl, replication_strategy=replication_strategy)
             for col_name in _get_catalog_table_columns(tbl):
                 col_selected = col_name in (
                     plan["selected_tables"][stream_name]["selected_columns"] or []
