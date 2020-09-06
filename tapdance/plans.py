@@ -535,7 +535,9 @@ def _create_selected_catalog(
             _select_table(tbl, replication_strategy=replication_strategy)
             for col_name in _get_catalog_table_columns(tbl):
                 col_selected = col_name in (
-                    plan["selected_tables"][stream_name]["selected_columns"] or []
+                    (plan["selected_tables"][stream_name]["selected_columns"] or [])
+                    + (plan["selected_tables"][stream_name]["replication_key"] or [])
+                    + (plan["selected_tables"][stream_name]["primary_key"] or [])
                 )
                 _select_table_column(tbl, col_name, col_selected)
             if skip_senseless_validators:
