@@ -27,6 +27,7 @@ def sync(
     target_config_file: Optional[str] = None,
     state_file: Optional[str] = None,
     exclude_tables: Optional[List[str]] = None,
+    replication_strategy: Optional[str] = None,
 ) -> None:
     """
     Synchronize data from tap to target.
@@ -76,67 +77,46 @@ def sync(
     exclude_tables: {List(str)}
         A list of tables to exclude. Ignored
         if table_name arg is not "*".
+    replication_strategy : {str}
+        One of "FULL_TABLE", "INCREMENTAL", or "LOG_BASED"; by default "INCREMENTAL" or
+        a value is set in the TAP_{TAPNAME}_REPLICATION_STRATEGY environment variable.
     """
     config.print_version()
 
-    tap_env_conf = config.get_plugin_settings_from_env(f"tap-{tap_name}")
-    config_file = tap_env_conf.get("CONFIG_FILE", config_file)
-    tap_exe = tap_exe or tap_env_conf.get("EXE", f"tap-{tap_name}")
-
-    table_name = table_name or tap_env_conf.get("TABLE_NAME", None)
-    exclude_tables = exclude_tables or tap_env_conf.get("EXCLUDE_TABLES", None)
-
-    target_env_conf = config.get_plugin_settings_from_env(f"target-{target_name}")
-    target_config_file = target_config_file or target_env_conf.get("CONFIG_FILE", None)
-    target_exe = target_exe or target_env_conf.get("EXE", f"target-{target_name}")
-
-    if dockerized is None:
-        if uio.is_windows() or uio.is_mac():
-            dockerized = True
-            logging.info(
-                "The 'dockerized' argument is not set when running either Windows or OSX..."
-                "Defaulting to dockerized=True"
-            )
-        else:
-            dockerized = False
     taps_dir = config.get_taps_dir(taps_dir)
+    config_file, tap_settings = config.get_or_create_config(
+        f"tap-{tap_name}",
+        taps_dir=taps_dir,
+        config_dir=config_dir,
+        config_file=config_file,
+    )
+    target_config_file, target_settings = config.get_or_create_config(
+        f"target-{target_name}",
+        taps_dir=taps_dir,
+        config_dir=config_dir,
+        config_file=target_config_file,
+    )
+    tap_exe = tap_exe or tap_settings.get("EXE", f"tap-{tap_name}")
+    target_exe = target_exe or target_settings.get("EXE", f"target-{target_name}")
+    replication_strategy = replication_strategy or tap_settings.get(
+        "REPLICATION_STRATEGY", "INCREMENTAL"
+    )
+    config.validate_replication_strategy(replication_strategy)
+
+    table_name = table_name or tap_settings.get("TABLE_NAME", None)
+    exclude_tables = exclude_tables or tap_settings.get("EXCLUDE_TABLES", None)
     rules_file = config.get_rules_file(taps_dir, tap_name)
-    config_required = True
-    target_config_required = True
-    logging.info(
-        f"Attempting to configure sync using config_file={config_file} and "
-        f"target_config_file={target_config_file}."
-    )
-    if (config_file is not None) and str(config_file).lower() == "false":
-        logging.info("Skipping check for tap config (--config_file=False)")
-        config_file = None
-        config_required = False
-    if (target_config_file is not None) and str(target_config_file).lower() == "false":
-        logging.info("Skipping check for target config (--target_config_file=False)")
-        target_config_file = None
-        target_config_required = False
-    config_file = str(
-        config.get_config_file(
-            f"tap-{tap_name}",
-            taps_dir=taps_dir,
-            config_dir=config_dir,
-            config_file=config_file,
-            required=config_required,
-        )
-    )
-    target_config_file = str(
-        config.get_config_file(
-            f"target-{target_name}",
-            taps_dir=taps_dir,
-            config_dir=config_dir,
-            config_file=target_config_file,
-            required=target_config_required,
-        )
-    )
-    if not uio.file_exists(config_file):
-        raise FileExistsError(config_file)
-    if not uio.file_exists(target_config_file):
-        raise FileExistsError(target_config_file)
+
+    # TODO: Resolve bug in Windows STDERR inclusion when emitting catalog json from
+    #       docker run
+    # if dockerized is None:
+    #     if uio.is_windows() or uio.is_mac():
+    #         dockerized = True
+    #         logging.info(
+    #             "The 'dockerized' argument is not set when running either Windows or OSX..."
+    #             "Defaulting to dockerized=True"
+    #         )
+
     catalog_dir = catalog_dir or config.get_catalog_output_dir(tap_name, taps_dir)
     full_catalog_file = f"{catalog_dir}/{tap_name}-catalog-selected.json"
     if rescan or rules_file or not uio.file_exists(full_catalog_file):

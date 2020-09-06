@@ -26,6 +26,7 @@ SKIP_SENSELESS_VALIDATORS = (
 REMOVE_SPECIAL_CHARS = (
     False  # Remove or replace special characters which are not permitted in most DBs.
 )
+SMALL_TABLE_THRESHOLD = 100000  # Warn if >= 10,000 rows and no replication key
 
 
 def _is_valid_json(json_text: str):
@@ -136,8 +137,15 @@ def _get_table_key_cols(
 ):
     result = []
     metadata_object = _get_stream_metadata_object(table_object)
+    row_count: Optional[int] = metadata_object.get("row-count", None)
+    row_count_desc = f" (est. {row_count:,} rows)" if row_count else ""
+    view_warning = f"(is-view=TRUE)" if metadata_object.get("is-view", None) else ""
     if key_type == "replication-key":
-        log_fn = log_fn or logging.debug
+        if not log_fn:
+            if row_count and row_count < SMALL_TABLE_THRESHOLD:
+                log_fn = logging.debug
+            else:
+                log_fn = logging.warning
         if "valid-replication-keys" in metadata_object:
             result = metadata_object["valid-replication-keys"]
     elif key_type == "primary-key":
@@ -148,7 +156,15 @@ def _get_table_key_cols(
         raise ValueError("Expected key_type of 'primary-key' or 'replication-key'")
     if not result and warn_if_missing:
         table_name = table_object.get("stream", "(unknown stream)")
-        log_fn(f"Could not locate '{key_type}' for '{table_name}'.")
+        log_fn(
+            " ".join(
+                [
+                    f"Could not locate '{key_type}' for '{table_name}'",
+                    row_count_desc,
+                    view_warning,
+                ]
+            )
+        )
     return result
 
 
@@ -288,7 +304,7 @@ def plan(
     taps_dir: str = None,
     config_dir: str = None,
     config_file: str = None,
-    replication_strategy: str = "INCREMENTAL",
+    replication_strategy: str = None,
 ) -> None:
     """Perform all actions necessary to prepare (plan) for a tap execution.
 
@@ -321,7 +337,8 @@ def plan(
         The location of the JSON config file which contains config for the specified
         plugin. (Default=f"${config_dir}/${plugin_name}-config.json")
     replication_strategy : {str}
-        One of "FULL_TABLE", "INCREMENTAL", or "LOG_BASED"; by default "INCREMENTAL"
+        One of "FULL_TABLE", "INCREMENTAL", or "LOG_BASED"; by default "INCREMENTAL" or
+        a value is set in the TAP_{TAPNAME}_REPLICATION_STRATEGY environment variable.
 
     Raises
     ------
@@ -333,37 +350,28 @@ def plan(
     """
     config.print_version()
 
-    tap_env_conf = config.get_plugin_settings_from_env(f"tap-{tap_name}")
-    config_file = tap_env_conf.get("CONFIG_FILE", config_file)
-    tap_exe = tap_exe or tap_env_conf.get("EXE", f"tap-{tap_name}")
-
-    if replication_strategy not in ["FULL_TABLE", "INCREMENTAL", "LOG_BASED"]:
-        raise ValueError(
-            f"Replication strategy {replication_strategy} not supported. Expected: "
-            "FULL_TABLE, INCREMENTAL, or LOG_BASED"
-        )
-    if (dockerized is None) and (uio.is_windows() or uio.is_mac()):
-        dockerized = True
-        logging.info(
-            "The 'dockerized' argument is not set when running either Windows or OSX. "
-            "Defaulting to dockerized=True..."
-        )
-
-    # Initialize paths
     taps_dir = config.get_taps_dir(taps_dir)
-    config_required = True
-    if (config_file is not None) and str(config_file).lower() == "false":
-        config_file = None
-        config_required = False
-    config_file = config.get_config_file(
+    config_file, tap_settings = config.get_or_create_config(
         f"tap-{tap_name}",
         taps_dir=taps_dir,
         config_dir=config_dir,
         config_file=config_file,
-        required=config_required,
     )
-    if not uio.file_exists(config_file):
-        raise FileExistsError(config_file)
+    tap_exe = tap_exe or tap_settings.get("EXE", f"tap-{tap_name}")
+    replication_strategy = replication_strategy or tap_settings.get(
+        "REPLICATION_STRATEGY", "INCREMENTAL"
+    )
+    config.validate_replication_strategy(replication_strategy)
+
+    # TODO: Resolve bug in Windows STDERR inclusion when emitting catalog json from
+    #       docker run
+    # if (dockerized is None) and (uio.is_windows() or uio.is_mac()):
+    #     dockerized = True
+    #     logging.info(
+    #         "The 'dockerized' argument is not set when running either Windows or OSX. "
+    #         "Defaulting to dockerized=True..."
+    #     )
+
     catalog_dir = config.get_catalog_output_dir(tap_name, taps_dir)
     raw_catalog_file = config.get_raw_catalog_file(catalog_dir, tap_name)
     selected_catalog_file = f"{catalog_dir}/{tap_name}-catalog-selected.json"
