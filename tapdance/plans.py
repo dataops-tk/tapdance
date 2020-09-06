@@ -196,6 +196,7 @@ def _set_catalog_file_keys(table_object: dict, table_plan: dict):
                 + ")"
             )
             metadata["valid-replication-keys"] = table_plan["replication_key"]
+            metadata["replication-key"] = table_plan["replication_key"][0]
 
 
 def _get_catalog_file_keys(
