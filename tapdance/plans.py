@@ -91,9 +91,9 @@ def _check_rules(
     ]
     declared_tables = set(
         [
-            rule.split(".")[0].rstrip()
+            rule.split(".")[0].rstrip().lstrip("!")
             for rule in select_rules
-            if rule.split(".")[0].rstrip() and ("*" not in rule.split(".")[0].rstrip())
+            if rule.split(".")[0].rstrip() and ("*" not in rule.split(".")[0])
         ]
     )
     matches: Dict[str, dict] = {}
