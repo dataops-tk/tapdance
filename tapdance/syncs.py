@@ -237,6 +237,7 @@ def _sync_one_table(
         pipeline_version_num=pipeline_version_num,
     )
     target_args = f"--config {tmp_target_config} "
+    hide_cmd = False
     if dockerized:
         cdw = os.getcwd().replace("\\", "/")
         tap_image_name = docker._get_docker_tap_image(tap_exe)
@@ -248,7 +249,6 @@ def _sync_one_table(
         target_config = json.loads(uio.get_text_file_contents(target_config_file))
         tap_docker_args = ""
         target_docker_args = ""
-        hide_cmd = False
         for k in ["aws_access_key_id", "aws_secret_access_key", "aws_session_token"]:
             if k in tap_config:
                 key = f"TAP_{tap_name}_{k}".replace("-", "_").upper()
