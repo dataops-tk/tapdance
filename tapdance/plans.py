@@ -52,7 +52,7 @@ def _discover(
         config_file = f"/home/local/{config_file}"
         _, _ = runnow.run(f"docker pull {img}")
         _, output_text = runnow.run(
-            f"docker run --rm -it "
+            f"docker run --rm "
             f"-v {cdw}:/home/local "
             f"{img} --config {config_file} --discover",
             echo=False,

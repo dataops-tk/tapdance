@@ -11,7 +11,7 @@ import uio
 logging = get_logger("tapdance")
 
 # These plugins will attempt to scrape and pass along AWs Credentials from the local environment.
-S3_TARGET_IDS = ["S3-CSV", "REDSHIFT", "SNOWFLAKE"]
+AWS_PLUGIN_IDS = ["S3-CSV", "REDSHIFT", "SNOWFLAKE", "DYNAMODB"]
 
 SINGER_PLUGINS_INDEX = os.environ.get("SINGER_PLUGINS_INDEX", "./singer_index.yml")
 VENV_ROOT = "/venv"
@@ -141,7 +141,7 @@ def get_or_create_config(
     conf_dict.update(get_plugin_settings_from_env(plugin_name, meta_args=False))
     if conf_dict:
         use_tmp_file = True
-    if "-".join(plugin_name.split("-")[1:]).upper() in S3_TARGET_IDS:
+    if "-".join(plugin_name.split("-")[1:]).upper() in AWS_PLUGIN_IDS:
         conf_dict = _inject_s3_config_creds(plugin_name, conf_dict)
         use_tmp_file = True
 

@@ -1,5 +1,6 @@
 """tapdance.syncs - Module containing the sync() function and sync helper functions."""
 
+import json
 import os
 from typing import List, Optional
 
@@ -153,6 +154,7 @@ def sync(
             tap_name=tap_name,
             target_name=target_name,
             table_name=table,
+            taps_dir=taps_dir,
             config_file=config_file,
             target_config_file=target_config_file,
             table_catalog_file=tmp_catalog_file,
@@ -190,6 +192,7 @@ def _dockerize_cli_args(arg_str: str, container_volume_root="/home/local") -> st
 def _sync_one_table(
     tap_name: str,
     table_name: str,
+    taps_dir: str,
     config_file: str,
     target_name: str,
     target_config_file: str,
@@ -208,10 +211,10 @@ def _sync_one_table(
         table_name,
         pipeline_version_num,
     )["table_state_file"]
-    tap_args = f"--config {config_file} --catalog {table_catalog_file}"
+    tap_args = f"--config {config_file} --catalog {table_catalog_file} "
     if uio.file_exists(table_state_file):
         local_state_file_in = os.path.join(
-            uio.get_temp_dir(), f"{tap_name}-{table_name}-state.json"
+            config.get_scratch_dir(taps_dir), f"{tap_name}-{table_name}-state.json"
         )
         if not uio.get_text_file_contents(table_state_file):
             logging.warning(f"Ignoring blank state file from '{table_state_file}'.")
@@ -223,7 +226,7 @@ def _sync_one_table(
         )
     else:
         local_state_file_out = os.path.join(
-            uio.get_temp_dir(), f"{tap_name}-{table_name}-state-new.json"
+            config.get_scratch_dir(taps_dir), f"{tap_name}-{table_name}-state-new.json"
         )
 
     tmp_target_config = config.get_single_table_target_config_file(
@@ -233,16 +236,32 @@ def _sync_one_table(
         table_name=table_name,
         pipeline_version_num=pipeline_version_num,
     )
-    target_args = f"--config {tmp_target_config}"
+    target_args = f"--config {tmp_target_config} "
     if dockerized:
         cdw = os.getcwd().replace("\\", "/")
         tap_image_name = docker._get_docker_tap_image(tap_exe)
         target_image_name = docker._get_docker_tap_image(target_exe=target_exe)
+        _, _ = runnow.run(f"docker pull {tap_image_name}")
+        _, _ = runnow.run(f"docker pull {target_image_name}")
+
+        tap_config = json.loads(uio.get_text_file_contents(config_file))
+        target_config = json.loads(uio.get_text_file_contents(target_config_file))
+        tap_docker_args = ""
+        target_docker_args = ""
+        for k in ["aws_access_key_id", "aws_secret_access_key"]:
+            if k in tap_config:
+                key = f"TAP_{tap_name}_{k}".replace("-", "_").upper()
+                os.environ[key] = tap_config[k]
+                tap_docker_args += f' -e {k.upper()}="{tap_config[k]}"'
+            if k in target_config:
+                key = f"TARGET_{target_name}_{k}".replace("-", "_").upper()
+                os.environ[key] = target_config[k]
+                target_docker_args += f' -e {k.upper()}="{target_config[k]}"'
         sync_cmd = (
-            f"docker run --rm -it -v {cdw}:/home/local {tap_image_name} "
+            f"docker run --rm -v {cdw}:/home/local {tap_docker_args} {tap_image_name} "
             f"{_dockerize_cli_args(tap_args)} "
             "| "
-            f"docker run --rm -it -v {cdw}:/home/local {target_image_name} "
+            f"docker run --rm -v {cdw}:/home/local {target_docker_args} {target_image_name} "
             f"{_dockerize_cli_args(target_args)} "
             ">> "
             f"{local_state_file_out}"
