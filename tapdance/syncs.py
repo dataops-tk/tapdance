@@ -249,6 +249,7 @@ def _sync_one_table(
         target_config = json.loads(uio.get_text_file_contents(target_config_file))
         tap_docker_args = ""
         target_docker_args = ""
+        # TODO: Replace with logic to parse from AWS_SHARED_CREDENTIALS_FILE env var:
         for k in ["aws_access_key_id", "aws_secret_access_key", "aws_session_token"]:
             if k in tap_config:
                 key = f"TAP_{tap_name}_{k}".replace("-", "_").upper()
