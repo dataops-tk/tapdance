@@ -1,5 +1,6 @@
 """tapdance.syncs - Module containing the sync() function and sync helper functions."""
 
+import json
 import os
 from typing import List, Optional
 
@@ -27,6 +28,7 @@ def sync(
     target_config_file: Optional[str] = None,
     state_file: Optional[str] = None,
     exclude_tables: Optional[List[str]] = None,
+    replication_strategy: Optional[str] = None,
 ) -> None:
     """
     Synchronize data from tap to target.
@@ -76,67 +78,46 @@ def sync(
     exclude_tables: {List(str)}
         A list of tables to exclude. Ignored
         if table_name arg is not "*".
+    replication_strategy : {str}
+        One of "FULL_TABLE", "INCREMENTAL", or "LOG_BASED"; by default "INCREMENTAL" or
+        a value is set in the TAP_{TAPNAME}_REPLICATION_STRATEGY environment variable.
     """
     config.print_version()
 
-    tap_env_conf = config.get_plugin_settings_from_env(f"tap-{tap_name}")
-    config_file = tap_env_conf.get("CONFIG_FILE", config_file)
-    tap_exe = tap_exe or tap_env_conf.get("EXE", f"tap-{tap_name}")
-
-    table_name = table_name or tap_env_conf.get("TABLE_NAME", None)
-    exclude_tables = exclude_tables or tap_env_conf.get("EXCLUDE_TABLES", None)
-
-    target_env_conf = config.get_plugin_settings_from_env(f"target-{target_name}")
-    target_config_file = target_config_file or target_env_conf.get("CONFIG_FILE", None)
-    target_exe = target_exe or target_env_conf.get("EXE", f"target-{target_name}")
-
-    if dockerized is None:
-        if uio.is_windows() or uio.is_mac():
-            dockerized = True
-            logging.info(
-                "The 'dockerized' argument is not set when running either Windows or OSX..."
-                "Defaulting to dockerized=True"
-            )
-        else:
-            dockerized = False
     taps_dir = config.get_taps_dir(taps_dir)
+    config_file, tap_settings = config.get_or_create_config(
+        f"tap-{tap_name}",
+        taps_dir=taps_dir,
+        config_dir=config_dir,
+        config_file=config_file,
+    )
+    target_config_file, target_settings = config.get_or_create_config(
+        f"target-{target_name}",
+        taps_dir=taps_dir,
+        config_dir=config_dir,
+        config_file=target_config_file,
+    )
+    tap_exe = tap_exe or tap_settings.get("EXE", f"tap-{tap_name}")
+    target_exe = target_exe or target_settings.get("EXE", f"target-{target_name}")
+    replication_strategy = replication_strategy or tap_settings.get(
+        "REPLICATION_STRATEGY", "INCREMENTAL"
+    )
+    config.validate_replication_strategy(replication_strategy)
+
+    table_name = table_name or tap_settings.get("TABLE_NAME", None)
+    exclude_tables = exclude_tables or tap_settings.get("EXCLUDE_TABLES", None)
     rules_file = config.get_rules_file(taps_dir, tap_name)
-    config_required = True
-    target_config_required = True
-    logging.info(
-        f"Attempting to configure sync using config_file={config_file} and "
-        f"target_config_file={target_config_file}."
-    )
-    if (config_file is not None) and str(config_file).lower() == "false":
-        logging.info("Skipping check for tap config (--config_file=False)")
-        config_file = None
-        config_required = False
-    if (target_config_file is not None) and str(target_config_file).lower() == "false":
-        logging.info("Skipping check for target config (--target_config_file=False)")
-        target_config_file = None
-        target_config_required = False
-    config_file = str(
-        config.get_config_file(
-            f"tap-{tap_name}",
-            taps_dir=taps_dir,
-            config_dir=config_dir,
-            config_file=config_file,
-            required=config_required,
-        )
-    )
-    target_config_file = str(
-        config.get_config_file(
-            f"target-{target_name}",
-            taps_dir=taps_dir,
-            config_dir=config_dir,
-            config_file=target_config_file,
-            required=target_config_required,
-        )
-    )
-    if not uio.file_exists(config_file):
-        raise FileExistsError(config_file)
-    if not uio.file_exists(target_config_file):
-        raise FileExistsError(target_config_file)
+
+    # TODO: Resolve bug in Windows STDERR inclusion when emitting catalog json from
+    #       docker run
+    # if dockerized is None:
+    #     if uio.is_windows() or uio.is_mac():
+    #         dockerized = True
+    #         logging.info(
+    #             "The 'dockerized' argument is not set when running either Windows or OSX..."
+    #             "Defaulting to dockerized=True"
+    #         )
+
     catalog_dir = catalog_dir or config.get_catalog_output_dir(tap_name, taps_dir)
     full_catalog_file = f"{catalog_dir}/{tap_name}-catalog-selected.json"
     if rescan or rules_file or not uio.file_exists(full_catalog_file):
@@ -173,6 +154,7 @@ def sync(
             tap_name=tap_name,
             target_name=target_name,
             table_name=table,
+            taps_dir=taps_dir,
             config_file=config_file,
             target_config_file=target_config_file,
             table_catalog_file=tmp_catalog_file,
@@ -210,6 +192,7 @@ def _dockerize_cli_args(arg_str: str, container_volume_root="/home/local") -> st
 def _sync_one_table(
     tap_name: str,
     table_name: str,
+    taps_dir: str,
     config_file: str,
     target_name: str,
     target_config_file: str,
@@ -228,10 +211,10 @@ def _sync_one_table(
         table_name,
         pipeline_version_num,
     )["table_state_file"]
-    tap_args = f"--config {config_file} --catalog {table_catalog_file}"
+    tap_args = f"--config {config_file} --catalog {table_catalog_file} "
     if uio.file_exists(table_state_file):
         local_state_file_in = os.path.join(
-            uio.get_temp_dir(), f"{tap_name}-{table_name}-state.json"
+            config.get_scratch_dir(taps_dir), f"{tap_name}-{table_name}-state.json"
         )
         if not uio.get_text_file_contents(table_state_file):
             logging.warning(f"Ignoring blank state file from '{table_state_file}'.")
@@ -243,7 +226,7 @@ def _sync_one_table(
         )
     else:
         local_state_file_out = os.path.join(
-            uio.get_temp_dir(), f"{tap_name}-{table_name}-state-new.json"
+            config.get_scratch_dir(taps_dir), f"{tap_name}-{table_name}-state-new.json"
         )
 
     tmp_target_config = config.get_single_table_target_config_file(
@@ -253,16 +236,36 @@ def _sync_one_table(
         table_name=table_name,
         pipeline_version_num=pipeline_version_num,
     )
-    target_args = f"--config {tmp_target_config}"
+    target_args = f"--config {tmp_target_config} "
+    hide_cmd = False
     if dockerized:
         cdw = os.getcwd().replace("\\", "/")
         tap_image_name = docker._get_docker_tap_image(tap_exe)
         target_image_name = docker._get_docker_tap_image(target_exe=target_exe)
+        _, _ = runnow.run(f"docker pull {tap_image_name}")
+        _, _ = runnow.run(f"docker pull {target_image_name}")
+
+        tap_config = json.loads(uio.get_text_file_contents(config_file))
+        target_config = json.loads(uio.get_text_file_contents(target_config_file))
+        tap_docker_args = ""
+        target_docker_args = ""
+        # TODO: Replace with logic to parse from AWS_SHARED_CREDENTIALS_FILE env var:
+        for k in ["aws_access_key_id", "aws_secret_access_key", "aws_session_token"]:
+            if k in tap_config:
+                key = f"TAP_{tap_name}_{k}".replace("-", "_").upper()
+                os.environ[key] = tap_config[k]
+                tap_docker_args += f' -e {k.upper()}="{tap_config[k]}"'
+                hide_cmd = True
+            if k in target_config:
+                key = f"TARGET_{target_name}_{k}".replace("-", "_").upper()
+                os.environ[key] = target_config[k]
+                target_docker_args += f' -e {k.upper()}="{target_config[k]}"'
+                hide_cmd = True
         sync_cmd = (
-            f"docker run --rm -it -v {cdw}:/home/local {tap_image_name} "
+            f"docker run --rm -v {cdw}:/home/local {tap_docker_args} {tap_image_name} "
             f"{_dockerize_cli_args(tap_args)} "
             "| "
-            f"docker run --rm -it -v {cdw}:/home/local {target_image_name} "
+            f"docker run --rm -v {cdw}:/home/local {target_docker_args} {target_image_name} "
             f"{_dockerize_cli_args(target_args)} "
             ">> "
             f"{local_state_file_out}"
@@ -277,7 +280,7 @@ def _sync_one_table(
             "> "
             f"{local_state_file_out}"
         )
-    runnow.run(sync_cmd)
+    runnow.run(sync_cmd, hide=hide_cmd)
     if not uio.file_exists(local_state_file_out):
         logging.warning(
             f"State file does not exist at path '{local_state_file_out}'. Skipping upload. "

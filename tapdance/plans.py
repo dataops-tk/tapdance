@@ -23,9 +23,7 @@ SKIP_SENSELESS_VALIDATORS = (
     # These only fail when our source is internally incoherent, which alone
     # is almost never sufficient cause for failing the data extraction.
 )
-REMOVE_SPECIAL_CHARS = (
-    False  # Remove or replace special characters which are not permitted in most DBs.
-)
+SMALL_TABLE_THRESHOLD = 100000  # Warn if >= 10,000 rows and no replication key
 
 
 def _is_valid_json(json_text: str):
@@ -54,7 +52,7 @@ def _discover(
         config_file = f"/home/local/{config_file}"
         _, _ = runnow.run(f"docker pull {img}")
         _, output_text = runnow.run(
-            f"docker run --rm -it "
+            f"docker run --rm "
             f"-v {cdw}:/home/local "
             f"{img} --config {config_file} --discover",
             echo=False,
@@ -93,9 +91,9 @@ def _check_rules(
     ]
     declared_tables = set(
         [
-            rule.split(".")[0].rstrip()
+            rule.split(".")[0].rstrip().lstrip("!")
             for rule in select_rules
-            if rule.split(".")[0].rstrip() and ("*" not in rule.split(".")[0].rstrip())
+            if rule.split(".")[0].rstrip() and ("*" not in rule.split(".")[0])
         ]
     )
     matches: Dict[str, dict] = {}
@@ -136,8 +134,15 @@ def _get_table_key_cols(
 ):
     result = []
     metadata_object = _get_stream_metadata_object(table_object)
+    row_count: Optional[int] = metadata_object.get("row-count", None)
+    row_count_desc = f" (est. {row_count:,} rows)" if row_count else ""
+    view_warning = f"(is-view=TRUE)" if metadata_object.get("is-view", None) else ""
     if key_type == "replication-key":
-        log_fn = log_fn or logging.debug
+        if not log_fn:
+            if row_count and row_count < SMALL_TABLE_THRESHOLD:
+                log_fn = logging.debug
+            else:
+                log_fn = logging.warning
         if "valid-replication-keys" in metadata_object:
             result = metadata_object["valid-replication-keys"]
     elif key_type == "primary-key":
@@ -148,7 +153,15 @@ def _get_table_key_cols(
         raise ValueError("Expected key_type of 'primary-key' or 'replication-key'")
     if not result and warn_if_missing:
         table_name = table_object.get("stream", "(unknown stream)")
-        log_fn(f"Could not locate '{key_type}' for '{table_name}'.")
+        log_fn(
+            " ".join(
+                [
+                    f"Could not locate '{key_type}' for '{table_name}'",
+                    row_count_desc,
+                    view_warning,
+                ]
+            )
+        )
     return result
 
 
@@ -183,6 +196,7 @@ def _set_catalog_file_keys(table_object: dict, table_plan: dict):
                 + ")"
             )
             metadata["valid-replication-keys"] = table_plan["replication_key"]
+            metadata["replication-key"] = table_plan["replication_key"][0]
 
 
 def _get_catalog_file_keys(
@@ -259,6 +273,23 @@ def get_table_list(
     exclude_tables: Optional[Union[str, List[str]]],
     catalog_file: str,
 ) -> List[str]:
+    """Return a list of tables to be selected.
+
+    Parameters
+    ----------
+    table_filter : Optional[Union[str, List[str]]]
+        A list of tables, a string representing a list, a single table name, or "*"
+        for all tables.
+    exclude_tables : Optional[Union[str, List[str]]]
+        A list of tables or a string representing a list of tables.
+    catalog_file : str
+        The path to a catalog file.
+
+    Returns
+    -------
+    List[str]
+        A list of table names selected.
+    """
     if isinstance(table_filter, list):
         list_of_tables = table_filter
     elif table_filter is None or table_filter == "*":
@@ -288,7 +319,7 @@ def plan(
     taps_dir: str = None,
     config_dir: str = None,
     config_file: str = None,
-    replication_strategy: str = "INCREMENTAL",
+    replication_strategy: str = None,
 ) -> None:
     """Perform all actions necessary to prepare (plan) for a tap execution.
 
@@ -321,7 +352,8 @@ def plan(
         The location of the JSON config file which contains config for the specified
         plugin. (Default=f"${config_dir}/${plugin_name}-config.json")
     replication_strategy : {str}
-        One of "FULL_TABLE", "INCREMENTAL", or "LOG_BASED"; by default "INCREMENTAL"
+        One of "FULL_TABLE", "INCREMENTAL", or "LOG_BASED"; by default "INCREMENTAL" or
+        a value is set in the TAP_{TAPNAME}_REPLICATION_STRATEGY environment variable.
 
     Raises
     ------
@@ -333,37 +365,28 @@ def plan(
     """
     config.print_version()
 
-    tap_env_conf = config.get_plugin_settings_from_env(f"tap-{tap_name}")
-    config_file = tap_env_conf.get("CONFIG_FILE", config_file)
-    tap_exe = tap_exe or tap_env_conf.get("EXE", f"tap-{tap_name}")
-
-    if replication_strategy not in ["FULL_TABLE", "INCREMENTAL", "LOG_BASED"]:
-        raise ValueError(
-            f"Replication strategy {replication_strategy} not supported. Expected: "
-            "FULL_TABLE, INCREMENTAL, or LOG_BASED"
-        )
-    if (dockerized is None) and (uio.is_windows() or uio.is_mac()):
-        dockerized = True
-        logging.info(
-            "The 'dockerized' argument is not set when running either Windows or OSX. "
-            "Defaulting to dockerized=True..."
-        )
-
-    # Initialize paths
     taps_dir = config.get_taps_dir(taps_dir)
-    config_required = True
-    if (config_file is not None) and str(config_file).lower() == "false":
-        config_file = None
-        config_required = False
-    config_file = config.get_config_file(
+    config_file, tap_settings = config.get_or_create_config(
         f"tap-{tap_name}",
         taps_dir=taps_dir,
         config_dir=config_dir,
         config_file=config_file,
-        required=config_required,
     )
-    if not uio.file_exists(config_file):
-        raise FileExistsError(config_file)
+    tap_exe = tap_exe or tap_settings.get("EXE", f"tap-{tap_name}")
+    replication_strategy = replication_strategy or tap_settings.get(
+        "REPLICATION_STRATEGY", "INCREMENTAL"
+    )
+    config.validate_replication_strategy(replication_strategy)
+
+    # TODO: Resolve bug in Windows STDERR inclusion when emitting catalog json from
+    #       docker run
+    # if (dockerized is None) and (uio.is_windows() or uio.is_mac()):
+    #     dockerized = True
+    #     logging.info(
+    #         "The 'dockerized' argument is not set when running either Windows or OSX. "
+    #         "Defaulting to dockerized=True..."
+    #     )
+
     catalog_dir = config.get_catalog_output_dir(tap_name, taps_dir)
     raw_catalog_file = config.get_raw_catalog_file(catalog_dir, tap_name)
     selected_catalog_file = f"{catalog_dir}/{tap_name}-catalog-selected.json"
@@ -406,7 +429,6 @@ def plan(
         output_file=selected_catalog_file,
         replication_strategy=replication_strategy,
         skip_senseless_validators=SKIP_SENSELESS_VALIDATORS,
-        remove_special_chars=REMOVE_SPECIAL_CHARS,
     )
     _validate_selected_catalog(tap_name, selected_catalog_file=selected_catalog_file)
 
@@ -497,7 +519,6 @@ def _create_selected_catalog(
     output_file: str,
     replication_strategy: str,
     skip_senseless_validators: bool,
-    remove_special_chars: bool,
 ) -> None:
     taps_dir = config.get_taps_dir()
     catalog_dir = config.get_catalog_output_dir(tap_name, taps_dir)
@@ -510,24 +531,14 @@ def _create_selected_catalog(
     included_table_objects = []
     for tbl in sorted(catalog_full["streams"], key=lambda x: _get_stream_name(x)):
         stream_name = _get_stream_name(tbl)
-        table_name = stream_name
-        if remove_special_chars:
-            if "-" in _get_table_name(tbl):
-                table_name = _get_table_name(tbl).replace("-", "_")
-        if (stream_name in plan["selected_tables"].keys()) or (
-            table_name in plan["selected_tables"].keys()
-        ):
-            if table_name != stream_name:
-                logging.info(
-                    f"Replaced default table name '{stream_name}' "
-                    f"with '{table_name}'"
-                )
-                tbl["table_name"] = table_name
-            _select_table(tbl, replication_strategy=replication_strategy)
+        if stream_name in plan["selected_tables"].keys():
             _set_catalog_file_keys(tbl, plan["selected_tables"][stream_name])
+            _select_table(tbl, replication_strategy=replication_strategy)
             for col_name in _get_catalog_table_columns(tbl):
                 col_selected = col_name in (
-                    plan["selected_tables"][stream_name]["selected_columns"] or []
+                    (plan["selected_tables"][stream_name]["selected_columns"] or [])
+                    + (plan["selected_tables"][stream_name]["replication_key"] or [])
+                    + (plan["selected_tables"][stream_name]["primary_key"] or [])
                 )
                 _select_table_column(tbl, col_name, col_selected)
             if skip_senseless_validators:

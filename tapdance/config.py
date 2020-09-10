@@ -5,13 +5,13 @@ import os
 from pathlib import Path
 
 from logless import get_logger, logged
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Tuple
 import uio
 
 logging = get_logger("tapdance")
 
 # These plugins will attempt to scrape and pass along AWs Credentials from the local environment.
-S3_TARGET_IDS = ["S3-CSV", "REDSHIFT", "SNOWFLAKE"]
+AWS_PLUGIN_IDS = ["S3-CSV", "REDSHIFT", "SNOWFLAKE", "DYNAMODB"]
 
 SINGER_PLUGINS_INDEX = os.environ.get("SINGER_PLUGINS_INDEX", "./singer_index.yml")
 VENV_ROOT = "/venv"
@@ -27,18 +27,24 @@ ENV_TAP_CONFIG_DIR = "TAP_CONFIG_DIR"
 ENV_TAP_STATE_FILE = "TAP_STATE_FILE"
 
 
-def get_plugin_settings_from_env(
-    plugin_name: str, exclude_meta: bool = False
-) -> Dict[str, Any]:
+def validate_replication_strategy(replication_strategy):
+    if replication_strategy not in ["FULL_TABLE", "INCREMENTAL", "LOG_BASED"]:
+        raise ValueError(
+            f"Replication strategy {replication_strategy} not supported. Expected: "
+            "FULL_TABLE, INCREMENTAL, or LOG_BASED"
+        )
+
+
+def get_plugin_settings_from_env(plugin_name: str, meta_args: bool) -> Dict[str, Any]:
     """Get all the settings from env vars which match the plugin prefix.
 
     Parameters
     ----------
     plugin_name : str
         The name of the plugin, including the 'tap-' or 'target-' prefix
-    exclude_meta : bool, optional
-        True to ignore UPPER_CASE settings, which are reserved for the orchestrator,
-        by default false
+    meta_args : bool
+        True to pull _uppercase_ settings only, which are reserved for the orchestrator;
+        otherwise pull only _lowercase_ settings. By default false
 
     Returns
     -------
@@ -51,7 +57,8 @@ def get_plugin_settings_from_env(
         if k.startswith(prefix):
             logging.debug(f"Parsing env variable '{k}' for '{plugin_name}'...")
             setting_name = k.split(prefix)[1]
-            if setting_name.upper() != setting_name or not exclude_meta:
+            case_match = meta_args == (setting_name.upper() == setting_name)
+            if case_match:
                 # Ensure truthinesss and falseness are maintained
                 if str(v).lower() == "false":
                     conf_dict[setting_name] = False
@@ -80,43 +87,61 @@ def print_version():
 
 @logged(
     "getting '{plugin_name}' config file using: config_dir={config_dir}, "
-    "config_file={config_file}, required={required}",
+    "config_file={config_file}",
     log_fn=logging.debug,
 )
-def get_config_file(
+def get_or_create_config(
     plugin_name: str,
     taps_dir: str = None,
     config_dir: str = None,
     config_file: str = None,
-    required: bool = True,
-) -> str:
+) -> Tuple[str, Dict[str, Any]]:
     """
-    Return a path to the configuration file which also contains secrets.
+    Return a path to the configuration file and a dictionary of settings values.
 
-     - If file is blank or does not exist at the default secrets path, a new file will be created.
-     - If any environment variables exist in the form of TAP_MY_TAP_my_setting, a new file
-    will be created which contains these settings.
-     - If the default file exists and environment variables also exist, the temp file will
-    contain the default file values along with the environment variable overrides.
+     - If file is blank or does not exist at the default secrets path, a new file will
+       be created.
+     - If any environment variables exist in the form of TAP_MY_TAP_my_setting, a new
+       file will be created which contains these settings.
+     - If the default file exists and environment variables also exist, the temp file
+       will contain the default file values along with the environment variable
+       overrides.
+     - Unless `config_file=False` (by boolean or case-insensitive string comparison),
+       the config file must exist at the path provided or (if 'None' is passed) at the
+       default location.
     """
-    secrets_path = os.path.abspath(config_dir or get_secrets_dir(taps_dir))
-    config_file = config_file or f"{secrets_path}/{plugin_name}-config.json"
-    tmp_path = f"{secrets_path}/tmp/{plugin_name}-config.json"
     use_tmp_file = False
-    if uio.file_exists(config_file):
-        conf_dict = json.loads(uio.get_text_file_contents(config_file))
-    elif required:
-        raise FileExistsError(config_file)
-    else:
-        logging.info(f"No {plugin_name} config file exists. A file will be created...")
-        conf_dict = {}
+    secrets_path = os.path.abspath(config_dir or get_secrets_dir(taps_dir))
+    tmp_path = f"{secrets_path}/tmp/{plugin_name}-config.json"
+
+    orchestrator_env_vars = get_plugin_settings_from_env(plugin_name, meta_args=True)
+    config_file = config_file or orchestrator_env_vars.get("CONFIG_FILE", None)
+    if (config_file is not None) and str(config_file).lower() == "false":
+        logging.info(f"Skipping check for '{plugin_name}' config (`config_file=False`)")
         use_tmp_file = True
+        config_file = tmp_path
+        conf_dict = {}  # Start with empty config
+        orchestrator_settings = orchestrator_env_vars
+    else:
+        config_file = config_file or f"{secrets_path}/{plugin_name}-config.json"
+        if not uio.file_exists(config_file):
+            raise FileExistsError(
+                f"Could not find '{plugin_name}' config at expected path: {config_file}"
+            )
+        logging.info(f"Reading '{plugin_name}' config from {config_file}...")
+        conf_dict = json.loads(uio.get_text_file_contents(config_file))
+        orchestrator_settings = {
+            k: v
+            for k, v in conf_dict.items()
+            if k.upper() == k  # Uppercase settings only
+        }
+        orchestrator_settings.update(orchestrator_env_vars)
 
     # Parse settings and secrets from environment variables
-    conf_dict.update(get_plugin_settings_from_env(plugin_name, exclude_meta=True))
+    conf_dict.update(get_plugin_settings_from_env(plugin_name, meta_args=False))
     if conf_dict:
         use_tmp_file = True
-    if "-".join(plugin_name.split("-")[1:]).upper() in S3_TARGET_IDS:
+    if "-".join(plugin_name.split("-")[1:]).upper() in AWS_PLUGIN_IDS:
         conf_dict = _inject_s3_config_creds(plugin_name, conf_dict)
         use_tmp_file = True
 
@@ -127,7 +152,7 @@ def get_config_file(
         config_file = tmp_path
     if not uio.file_exists(config_file):
         raise FileExistsError(config_file)
-    return config_file
+    return config_file, orchestrator_settings
 
 
 def get_pipeline_version_number() -> str:
