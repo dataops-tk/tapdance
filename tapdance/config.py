@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 
 from logless import get_logger, logged
-from typing import Optional, Dict, Any, Tuple
+from typing import Optional, Dict, Any, Tuple, List
 import uio
 
 logging = get_logger("tapdance")
@@ -332,3 +332,41 @@ def replace_placeholders(
                         search_key, replacement_value
                     )
     return new_config
+
+
+def _dockerize_path(localpath: str, container_volume_root="/home/local") -> str:
+    result = os.path.relpath(localpath).replace("\\", "/")
+    result = f"{container_volume_root}/{result}"
+    return result
+
+
+def dockerize_cli_args(arg_str: str, container_volume_root="/home/local") -> str:
+    """Return a string with all host paths converted to their container equivalents.
+
+    Parameters
+    ----------
+    arg_str : str
+        The cli arg string to convert
+    container_volume_root : str, optional
+        The container directory which is mapped to local working directory,
+        by default "/home/local"
+
+    Returns
+    -------
+    str
+        A string with host paths converted to container paths.
+    """
+    args = arg_str.split(" ")
+    newargs: List[str] = []
+    for arg in args:
+        if uio.file_exists(arg):
+            newargs.append(_dockerize_path(arg, container_volume_root))
+        elif "=" in arg:
+            left, right = arg.split("=")[0], "=".join(arg.split("=")[1:])
+            if uio.file_exists(right):
+                newargs.append(
+                    f"{left}={_dockerize_path(right, container_volume_root)}"
+                )
+        else:
+            newargs.append(arg)
+    return " ".join(newargs)

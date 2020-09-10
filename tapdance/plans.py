@@ -46,23 +46,35 @@ def _discover(
     catalog_file = config.get_raw_catalog_file(catalog_dir, tap_name)
     uio.create_folder(catalog_dir)
     img = f"{docker.BASE_DOCKER_REPO}:{tap_exe}"
+    hide_cmd = False
     if dockerized:
         cdw = os.getcwd().replace("\\", "/")
-        config_file = os.path.relpath(config_file).replace("\\", "/")
-        config_file = f"/home/local/{config_file}"
+        tap_config = json.loads(uio.get_text_file_contents(config_file))
+        tap_docker_args = ""
+        # TODO: Replace with logic to parse from AWS_SHARED_CREDENTIALS_FILE env var:
+        for k in ["aws_access_key_id", "aws_secret_access_key", "aws_session_token"]:
+            if k in tap_config:
+                key = f"TAP_{tap_name}_{k}".replace("-", "_").upper()
+                os.environ[key] = tap_config[k]
+                tap_docker_args += f' -e {k.upper()}="{tap_config[k]}"'
+                hide_cmd = True
         _, _ = runnow.run(f"docker pull {img}")
         _, output_text = runnow.run(
             f"docker run --rm "
-            f"-v {cdw}:/home/local "
-            f"{img} --config {config_file} --discover",
+            f"-v {cdw}:/home/local {tap_docker_args} "
+            f"{img} --config {config.dockerize_cli_args(config_file)} --discover",
             echo=False,
             capture_stderr=False,
+            hide=hide_cmd,
         )
         if not _is_valid_json(output_text):
             raise RuntimeError(f"Could not parse json file from output:\n{output_text}")
         uio.create_text_file(catalog_file, output_text)
     else:
-        runnow.run(f"{tap_exe} --config {config_file} --discover > {catalog_file}")
+        runnow.run(
+            f"{tap_exe} --config {config_file} --discover > {catalog_file}",
+            hide=hide_cmd,
+        )
 
 
 def _check_rules(

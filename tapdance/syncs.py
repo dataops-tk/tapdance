@@ -165,29 +165,6 @@ def sync(
         )
 
 
-def _dockerize_path(localpath: str, container_volume_root="/home/local") -> str:
-    result = os.path.relpath(localpath).replace("\\", "/")
-    result = f"{container_volume_root}/{result}"
-    return result
-
-
-def _dockerize_cli_args(arg_str: str, container_volume_root="/home/local") -> str:
-    args = arg_str.split(" ")
-    newargs: List[str] = []
-    for arg in args:
-        if uio.file_exists(arg):
-            newargs.append(_dockerize_path(arg, container_volume_root))
-        elif "=" in arg:
-            left, right = arg.split("=")[0], "=".join(arg.split("=")[1:])
-            if uio.file_exists(right):
-                newargs.append(
-                    f"{left}={_dockerize_path(right, container_volume_root)}"
-                )
-        else:
-            newargs.append(arg)
-    return " ".join(newargs)
-
-
 @logged("running sync of table '{table_name}' from '{tap_name}'")
 def _sync_one_table(
     tap_name: str,
@@ -263,10 +240,10 @@ def _sync_one_table(
                 hide_cmd = True
         sync_cmd = (
             f"docker run --rm -v {cdw}:/home/local {tap_docker_args} {tap_image_name} "
-            f"{_dockerize_cli_args(tap_args)} "
+            f"{config.dockerize_cli_args(tap_args)} "
             "| "
             f"docker run --rm -v {cdw}:/home/local {target_docker_args} {target_image_name} "
-            f"{_dockerize_cli_args(target_args)} "
+            f"{config.dockerize_cli_args(target_args)} "
             ">> "
             f"{local_state_file_out}"
         )
