@@ -248,15 +248,18 @@ def _sync_one_table(
         target_config = json.loads(uio.get_text_file_contents(target_config_file))
         tap_docker_args = ""
         target_docker_args = ""
-        for k in ["aws_access_key_id", "aws_secret_access_key"]:
+        hide_cmd = False
+        for k in ["aws_access_key_id", "aws_secret_access_key", "aws_session_token"]:
             if k in tap_config:
                 key = f"TAP_{tap_name}_{k}".replace("-", "_").upper()
                 os.environ[key] = tap_config[k]
                 tap_docker_args += f' -e {k.upper()}="{tap_config[k]}"'
+                hide_cmd = True
             if k in target_config:
                 key = f"TARGET_{target_name}_{k}".replace("-", "_").upper()
                 os.environ[key] = target_config[k]
                 target_docker_args += f' -e {k.upper()}="{target_config[k]}"'
+                hide_cmd = True
         sync_cmd = (
             f"docker run --rm -v {cdw}:/home/local {tap_docker_args} {tap_image_name} "
             f"{_dockerize_cli_args(tap_args)} "
@@ -276,7 +279,7 @@ def _sync_one_table(
             "> "
             f"{local_state_file_out}"
         )
-    runnow.run(sync_cmd)
+    runnow.run(sync_cmd, hide=hide_cmd)
     if not uio.file_exists(local_state_file_out):
         logging.warning(
             f"State file does not exist at path '{local_state_file_out}'. Skipping upload. "
