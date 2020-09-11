@@ -239,10 +239,10 @@ def _sync_one_table(
                 target_docker_args += f' -e {k.upper()}="{target_config[k]}"'
                 hide_cmd = True
         sync_cmd = (
-            f"docker run --rm -v {cdw}:/home/local {tap_docker_args} {tap_image_name} "
+            f"docker run --rm -i -v {cdw}:/home/local {tap_docker_args} {tap_image_name} "
             f"{config.dockerize_cli_args(tap_args)} "
             "| "
-            f"docker run --rm -v {cdw}:/home/local {target_docker_args} {target_image_name} "
+            f"docker run --rm -i -v {cdw}:/home/local {target_docker_args} {target_image_name} "
             f"{config.dockerize_cli_args(target_args)} "
             ">> "
             f"{local_state_file_out}"
