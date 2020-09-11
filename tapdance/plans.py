@@ -43,7 +43,9 @@ def _discover(
     dockerized: bool,
     tap_exe: str,
 ) -> None:
-    catalog_file = config.get_raw_catalog_file(catalog_dir, tap_name)
+    catalog_file = config.get_raw_catalog_file(
+        catalog_dir, tap_name, allow_custom=False
+    )
     uio.create_folder(catalog_dir)
     img = f"{docker.BASE_DOCKER_REPO}:{tap_exe}"
     hide_cmd = False
@@ -60,7 +62,7 @@ def _discover(
                 hide_cmd = True
         _, _ = runnow.run(f"docker pull {img}")
         _, output_text = runnow.run(
-            f"docker run --rm "
+            f"docker run --rm -i "
             f"-v {cdw}:/home/local {tap_docker_args} "
             f"{img} --config {config.dockerize_cli_args(config_file)} --discover",
             echo=False,
@@ -400,7 +402,9 @@ def plan(
     #     )
 
     catalog_dir = config.get_catalog_output_dir(tap_name, taps_dir)
-    raw_catalog_file = config.get_raw_catalog_file(catalog_dir, tap_name)
+    raw_catalog_file = config.get_raw_catalog_file(
+        catalog_dir, tap_name, allow_custom=True
+    )
     selected_catalog_file = f"{catalog_dir}/{tap_name}-catalog-selected.json"
     plan_file = config.get_plan_file(tap_name, taps_dir, required=False)
 
@@ -612,7 +616,7 @@ def _remove_senseless_validators(tbl: dict) -> None:
             "exclusiveMaximum",
             "maxLength",
         ]:
-            if senseless in props:
+            if isinstance(props, dict) and senseless in props:
                 props.pop(senseless)
 
 
