@@ -227,8 +227,8 @@ def get_scratch_dir(taps_dir: Optional[str]):
     return result
 
 
-def get_catalog_output_dir(tap_name: str, taps_dir: str) -> str:
-    result = f"{get_scratch_dir(taps_dir)}/taps/{tap_name}-catalog"
+def get_tap_output_dir(tap_name: str, taps_dir: str) -> str:
+    result = f"{get_scratch_dir(taps_dir)}/tap-{tap_name}"
     uio.create_folder(result)
     return result
 

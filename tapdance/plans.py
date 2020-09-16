@@ -401,7 +401,7 @@ def plan(
     #         "Defaulting to dockerized=True..."
     #     )
 
-    catalog_dir = config.get_catalog_output_dir(tap_name, taps_dir)
+    catalog_dir = config.get_tap_output_dir(tap_name, taps_dir)
     raw_catalog_file = config.get_raw_catalog_file(
         catalog_dir, tap_name, allow_custom=True
     )
@@ -537,7 +537,7 @@ def _create_selected_catalog(
     skip_senseless_validators: bool,
 ) -> None:
     taps_dir = config.get_taps_dir()
-    catalog_dir = config.get_catalog_output_dir(tap_name, taps_dir)
+    catalog_dir = config.get_tap_output_dir(tap_name, taps_dir)
     output_file = output_file or os.path.join(catalog_dir, "selected-catalog.json")
     catalog_full = json.loads(Path(raw_catalog_file).read_text())
     plan_file = plan_file or config.get_plan_file(tap_name)
@@ -652,7 +652,7 @@ def _create_single_table_catalog(
     output_file: str = None,
 ) -> None:
     taps_dir = config.get_taps_dir()
-    catalog_dir = config.get_catalog_output_dir(tap_name, taps_dir)
+    catalog_dir = config.get_tap_output_dir(tap_name, taps_dir)
     source_catalog_path = full_catalog_file or os.path.join(
         catalog_dir, "catalog-selected.json"
     )

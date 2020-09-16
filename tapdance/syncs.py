@@ -118,7 +118,7 @@ def sync(
     #             "Defaulting to dockerized=True"
     #         )
 
-    catalog_dir = catalog_dir or config.get_catalog_output_dir(tap_name, taps_dir)
+    catalog_dir = catalog_dir or config.get_tap_output_dir(tap_name, taps_dir)
     full_catalog_file = f"{catalog_dir}/{tap_name}-catalog-selected.json"
     if rescan or rules_file or not uio.file_exists(full_catalog_file):
         plans.plan(
@@ -191,7 +191,8 @@ def _sync_one_table(
     tap_args = f"--config {config_file} --catalog {table_catalog_file} "
     if uio.file_exists(table_state_file):
         local_state_file_in = os.path.join(
-            config.get_scratch_dir(taps_dir), f"{tap_name}-{table_name}-state.json"
+            config.get_tap_output_dir(tap_name, taps_dir),
+            f"{tap_name}-{table_name}-state.json",
         )
         if not uio.get_text_file_contents(table_state_file):
             logging.warning(f"Ignoring blank state file from '{table_state_file}'.")
@@ -203,7 +204,8 @@ def _sync_one_table(
         )
     else:
         local_state_file_out = os.path.join(
-            config.get_scratch_dir(taps_dir), f"{tap_name}-{table_name}-state-new.json"
+            config.get_tap_output_dir(tap_name, taps_dir),
+            f"{tap_name}-{table_name}-state-new.json",
         )
 
     tmp_target_config = config.get_single_table_target_config_file(
