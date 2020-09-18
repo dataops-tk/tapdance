@@ -79,6 +79,66 @@ def _discover(
         )
 
 
+@logged("running custom schema inference on a dry run of '{tap_name}'")
+def _infer_schema(
+    tap_name: str,
+    *,
+    config_file: str,
+    catalog_dir: str,
+    dockerized: bool,
+    tap_exe: str,
+) -> None:
+    custom_catalog_file = config.get_custom_catalog_file(catalog_dir, tap_name)
+    raw_catalog_file = config.get_raw_catalog_file(
+        catalog_dir, tap_name, allow_custom=False
+    )
+    tmp_folder = uio.create_folder(f"{catalog_dir}/tmp")
+    uio.create_folder(catalog_dir)
+    uio.create_folder(tmp_folder)
+    img = f"{docker.BASE_DOCKER_REPO}:{tap_exe}"
+    hide_cmd = False
+    if dockerized:
+        cdw = os.getcwd().replace("\\", "/")
+        tap_config = json.loads(uio.get_text_file_contents(config_file))
+        tap_docker_args = ""
+        # TODO: Replace with logic to parse from AWS_SHARED_CREDENTIALS_FILE env var:
+        for k in ["aws_access_key_id", "aws_secret_access_key", "aws_session_token"]:
+            if k in tap_config:
+                key = f"TAP_{tap_name}_{k}".replace("-", "_").upper()
+                os.environ[key] = tap_config[k]
+                tap_docker_args += f' -e {k.upper()}="{tap_config[k]}"'
+                hide_cmd = True
+        _, _ = runnow.run(f"docker pull {img}")
+        _, _ = runnow.run(
+            f"docker run --rm -i "
+            f"-v {cdw}:/home/local {tap_docker_args} "
+            f"{img} --config {config.dockerize_cli_args(config_file)}"
+            f" | singer-infer-schema --out-dir {tmp_folder}",
+            echo=False,
+            capture_stderr=False,
+            hide=hide_cmd,
+        )
+    else:
+        runnow.run(
+            f"{tap_exe} --config {config_file} "
+            f" | singer-infer-schema --out-dir {tmp_folder}",
+            hide=hide_cmd,
+        )
+    if uio.file_exists(custom_catalog_file) and uio.get_text_file_contents(
+        custom_catalog_file
+    ):
+        custom_catalog = json.loads(uio.get_text_file_contents(custom_catalog_file))
+    else:
+        custom_catalog = json.loads(uio.get_text_file_contents(raw_catalog_file))
+    for stream in custom_catalog["streams"]:
+        stream_name = stream["stream"]
+        inferred_file = f"{tmp_folder}/{stream_name}.inferred.json"
+        if uio.file_exists(inferred_file):
+            logging.info("Extracting schema info from file '{inferred_file}'...")
+            stream.schema = json.loads(uio.get_text_file_contents(inferred_file))
+    uio.create_text_file(custom_catalog_file, json.dumps(custom_catalog))
+
+
 def _check_rules(
     catalog_file: str, rules_file: List[str]
 ) -> Tuple[Dict[str, Dict[str, bool]], List[str]]:
@@ -329,6 +389,7 @@ def plan(
     *,
     dockerized: bool = None,
     rescan: bool = None,
+    infer_custom: bool = None,
     tap_exe: str = None,
     taps_dir: str = None,
     config_dir: str = None,
@@ -355,6 +416,8 @@ def plan(
         Specifies the tap executable, if different from `tap-{tap_name}`.
     rescan : {bool}
         True to force a rescan and replace existing metadata.
+    infer_custom : {bool}
+        True to infer schema by performing a dry run data sync.
     taps_dir: {str}
         The directory containing the rules file.
         (Default=cwd)
@@ -411,6 +474,15 @@ def plan(
     if rescan or not uio.file_exists(raw_catalog_file):
         # Run discover, if needed, to get catalog.json (raw)
         _discover(
+            tap_name,
+            config_file=config_file,
+            catalog_dir=catalog_dir,
+            dockerized=dockerized,
+            tap_exe=tap_exe,
+        )
+    if infer_custom:
+        # Run discover, if needed, to get catalog.json (raw)
+        _infer_schema(
             tap_name,
             config_file=config_file,
             catalog_dir=catalog_dir,

@@ -233,8 +233,12 @@ def get_tap_output_dir(tap_name: str, taps_dir: str) -> str:
     return result
 
 
+def get_custom_catalog_file(catalog_dir: str, tap_name: str):
+    return f"{catalog_dir}/{tap_name}-catalog-custom.json"
+
+
 def get_raw_catalog_file(catalog_dir: str, tap_name: str, allow_custom: bool = True):
-    custom_catalog_path = f"{catalog_dir}/{tap_name}-catalog-custom.json"
+    custom_catalog_path = get_custom_catalog_file(catalog_dir, tap_name)
     catalog_file = f"{catalog_dir}/{tap_name}-catalog-raw.json"
     if allow_custom and uio.file_exists(custom_catalog_path):
         logging.info(f"Using custom catalog file: {custom_catalog_path}")
