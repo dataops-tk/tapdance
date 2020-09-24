@@ -146,7 +146,7 @@ def _infer_schema(
             if not stream:
                 raise ValueError(
                     f"Failed to append inferred schema for stream name '{stream_name}'."
-                    f" Stream not present in catalog file {input_catalog_file}."
+                    f" Stream not present in catalog file {selected_catalog_file}."
                 )
             stream["schema"] = inferred_schema
 
