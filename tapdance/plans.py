@@ -84,19 +84,17 @@ def _discover(
 def _infer_schema(
     tap_name: str,
     taps_dir: str,
+    selected_catalog_file: str,
     *,
     config_file: str,
     catalog_dir: str,
     dockerized: bool,
     tap_exe: str,
 ) -> None:
-    custom_catalog_file = config.get_custom_catalog_file(
-        taps_dir, catalog_dir, tap_name
-    )
-    raw_catalog_file = config.get_raw_catalog_file(
-        taps_dir, catalog_dir, tap_name, allow_custom=False
-    )
-    tmp_folder = uio.create_folder(f"{catalog_dir}/tmp")
+    custom_catalog_file = config.get_custom_catalog_file(taps_dir, tap_name)
+    custom_catalog = json.loads(uio.get_text_file_contents(selected_catalog_file))
+    tmp_folder = f"{catalog_dir}/tmp"
+    tmp_outfile = f"{catalog_dir}/tmp/sync-dryrun.jsonl"
     uio.create_folder(catalog_dir)
     uio.create_folder(tmp_folder)
     img = f"{docker.BASE_DOCKER_REPO}:{tap_exe}"
@@ -113,34 +111,46 @@ def _infer_schema(
                 tap_docker_args += f' -e {k.upper()}="{tap_config[k]}"'
                 hide_cmd = True
         _, _ = runnow.run(f"docker pull {img}")
-        _, _ = runnow.run(
+        _, jsonl_out = runnow.run(
             f"docker run --rm -i "
             f"-v {cdw}:/home/local {tap_docker_args} "
-            f"{img} --config {config.dockerize_cli_args(config_file)}"
-            f" | singer-infer-schema --out-dir {tmp_folder}",
+            f"{img} "
+            f"--config {config.dockerize_cli_args(config_file)}"
+            f"--catalog {selected_catalog_file}",
+            hide=hide_cmd,
             echo=False,
             capture_stderr=False,
-            hide=hide_cmd,
         )
     else:
-        runnow.run(
-            f"{tap_exe} --config {config_file} "
-            f" | singer-infer-schema --out-dir {tmp_folder}",
+        _, jsonl_out = runnow.run(
+            f"{tap_exe} "
+            f"--config {config_file} "
+            f"--catalog {selected_catalog_file}",
             hide=hide_cmd,
+            echo=False,
+            capture_stderr=False,
         )
-    if uio.file_exists(custom_catalog_file) and uio.get_text_file_contents(
-        custom_catalog_file
-    ):
-        custom_catalog = json.loads(uio.get_text_file_contents(custom_catalog_file))
-    else:
-        custom_catalog = json.loads(uio.get_text_file_contents(raw_catalog_file))
-    for stream in custom_catalog["streams"]:
-        stream_name = stream["stream"]
-        inferred_file = f"{tmp_folder}/{stream_name}.inferred.json"
-        if uio.file_exists(inferred_file):
-            logging.info("Extracting schema info from file '{inferred_file}'...")
-            stream.schema = json.loads(uio.get_text_file_contents(inferred_file))
-    uio.create_text_file(custom_catalog_file, json.dumps(custom_catalog))
+    uio.create_text_file(tmp_outfile, jsonl_out)
+    _, jsonl_out = runnow.run(
+        f"cat {tmp_outfile} | singer-infer-schema --out-dir {tmp_folder}",
+    )
+    for file in uio.list_files(tmp_folder):
+        if file.endswith(".inferred.json"):
+            logging.info(f"Parsing inferred schema from '{file}'...")
+            inferred_schema = json.loads(uio.get_text_file_contents(file))
+            stream_name = file.split("/")[-1].split(".")[0]
+            stream = (
+                [x for x in custom_catalog["streams"] if x["stream"] == stream_name]
+                or [None]
+            )[0]
+            if not stream:
+                raise ValueError(
+                    f"Failed to append inferred schema for stream name '{stream_name}'."
+                    f" Stream not present in catalog file {input_catalog_file}."
+                )
+            stream["schema"] = inferred_schema
+
+    uio.create_text_file(custom_catalog_file, json.dumps(custom_catalog, indent=2))
 
 
 def _check_rules(
@@ -393,7 +403,7 @@ def plan(
     *,
     dockerized: bool = None,
     rescan: bool = None,
-    infer_custom: bool = None,
+    infer_custom_schema: bool = None,
     tap_exe: str = None,
     taps_dir: str = None,
     config_dir: str = None,
@@ -420,7 +430,7 @@ def plan(
         Specifies the tap executable, if different from `tap-{tap_name}`.
     rescan : {bool}
         True to force a rescan and replace existing metadata.
-    infer_custom : {bool}
+    infer_custom_schema : {bool}
         True to infer schema by performing a dry run data sync.
     taps_dir: {str}
         The directory containing the rules file.
@@ -485,45 +495,52 @@ def plan(
             dockerized=dockerized,
             tap_exe=tap_exe,
         )
-    if infer_custom:
-        # Run discover, if needed, to get catalog.json (raw)
-        _infer_schema(
-            tap_name,
-            taps_dir,
-            config_file=config_file,
-            catalog_dir=catalog_dir,
-            dockerized=dockerized,
-            tap_exe=tap_exe,
-        )
-
     rules_file = config.get_rules_file(taps_dir, tap_name)
-    matches, excluded_tables = _check_rules(
-        catalog_file=raw_catalog_file, rules_file=rules_file
-    )
-    primary_keys = _get_catalog_file_keys(
-        "primary-key", matches=matches, catalog_file=raw_catalog_file
-    )
-    primary_keys.update(
-        _get_rules_file_keys("primary-key", matches=matches, rules_file=rules_file)
-    )
-    replication_keys = _get_catalog_file_keys(
-        "replication-key", matches=matches, catalog_file=raw_catalog_file,
-    )
-    replication_keys.update(
-        _get_rules_file_keys("replication-key", matches=matches, rules_file=rules_file,)
-    )
-    file_text = _make_plan_file_text(
-        matches, primary_keys, replication_keys, excluded_tables
-    )
-    uio.create_text_file(plan_file, file_text)
-    _create_selected_catalog(
-        tap_name,
-        plan_file=plan_file,
-        raw_catalog_file=raw_catalog_file,
-        output_file=selected_catalog_file,
-        replication_strategy=replication_strategy,
-        skip_senseless_validators=SKIP_SENSELESS_VALIDATORS,
-    )
+    for x in [0, 1]:
+        if x == 1:
+            if not infer_custom_schema:
+                # No need to run second loop
+                break
+            elif infer_custom_schema:
+                # Run discover, if needed, to get catalog.json (raw)
+                _infer_schema(
+                    tap_name,
+                    taps_dir,
+                    selected_catalog_file=selected_catalog_file,
+                    config_file=config_file,
+                    catalog_dir=catalog_dir,
+                    dockerized=dockerized,
+                    tap_exe=tap_exe,
+                )
+        matches, excluded_tables = _check_rules(
+            catalog_file=raw_catalog_file, rules_file=rules_file
+        )
+        primary_keys = _get_catalog_file_keys(
+            "primary-key", matches=matches, catalog_file=raw_catalog_file
+        )
+        primary_keys.update(
+            _get_rules_file_keys("primary-key", matches=matches, rules_file=rules_file)
+        )
+        replication_keys = _get_catalog_file_keys(
+            "replication-key", matches=matches, catalog_file=raw_catalog_file,
+        )
+        replication_keys.update(
+            _get_rules_file_keys(
+                "replication-key", matches=matches, rules_file=rules_file,
+            )
+        )
+        file_text = _make_plan_file_text(
+            matches, primary_keys, replication_keys, excluded_tables
+        )
+        uio.create_text_file(plan_file, file_text)
+        _create_selected_catalog(
+            tap_name,
+            plan_file=plan_file,
+            raw_catalog_file=raw_catalog_file,
+            output_file=selected_catalog_file,
+            replication_strategy=replication_strategy,
+            skip_senseless_validators=SKIP_SENSELESS_VALIDATORS,
+        )
     _validate_selected_catalog(tap_name, selected_catalog_file=selected_catalog_file)
 
 
