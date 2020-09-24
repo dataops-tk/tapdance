@@ -37,6 +37,7 @@ def _is_valid_json(json_text: str):
 @logged("running discovery on '{tap_name}'")
 def _discover(
     tap_name: str,
+    taps_dir: str,
     *,
     config_file: str,
     catalog_dir: str,
@@ -44,7 +45,7 @@ def _discover(
     tap_exe: str,
 ) -> None:
     catalog_file = config.get_raw_catalog_file(
-        catalog_dir, tap_name, allow_custom=False
+        taps_dir, catalog_dir, tap_name, allow_custom=False
     )
     uio.create_folder(catalog_dir)
     img = f"{docker.BASE_DOCKER_REPO}:{tap_exe}"
@@ -82,15 +83,18 @@ def _discover(
 @logged("running custom schema inference on a dry run of '{tap_name}'")
 def _infer_schema(
     tap_name: str,
+    taps_dir: str,
     *,
     config_file: str,
     catalog_dir: str,
     dockerized: bool,
     tap_exe: str,
 ) -> None:
-    custom_catalog_file = config.get_custom_catalog_file(catalog_dir, tap_name)
+    custom_catalog_file = config.get_custom_catalog_file(
+        taps_dir, catalog_dir, tap_name
+    )
     raw_catalog_file = config.get_raw_catalog_file(
-        catalog_dir, tap_name, allow_custom=False
+        taps_dir, catalog_dir, tap_name, allow_custom=False
     )
     tmp_folder = uio.create_folder(f"{catalog_dir}/tmp")
     uio.create_folder(catalog_dir)
@@ -466,7 +470,7 @@ def plan(
 
     catalog_dir = config.get_tap_output_dir(tap_name, taps_dir)
     raw_catalog_file = config.get_raw_catalog_file(
-        catalog_dir, tap_name, allow_custom=True
+        taps_dir, catalog_dir, tap_name, allow_custom=True
     )
     selected_catalog_file = f"{catalog_dir}/{tap_name}-catalog-selected.json"
     plan_file = config.get_plan_file(tap_name, taps_dir, required=False)
@@ -475,6 +479,7 @@ def plan(
         # Run discover, if needed, to get catalog.json (raw)
         _discover(
             tap_name,
+            taps_dir,
             config_file=config_file,
             catalog_dir=catalog_dir,
             dockerized=dockerized,
@@ -484,6 +489,7 @@ def plan(
         # Run discover, if needed, to get catalog.json (raw)
         _infer_schema(
             tap_name,
+            taps_dir,
             config_file=config_file,
             catalog_dir=catalog_dir,
             dockerized=dockerized,

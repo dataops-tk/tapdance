@@ -25,6 +25,7 @@ singer-taps:
   - { name: tap-salesforce,  alias: tap-salesforce-pw, source: pipelinewise-tap-salesforce }
   - { name: tap-sftp }
   - { name: tap-snowflake,  source: pipelinewise-tap-snowflake }
+  - { name: tap-workday-raas }
   - { name: tap-zendesk }
 
 singer-targets:
