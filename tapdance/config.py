@@ -148,7 +148,7 @@ def get_or_create_config(
     if use_tmp_file:
         logging.info(f"Writing temporary config file to '{tmp_path}'...")
         uio.create_folder(str(Path(tmp_path).parent))
-        uio.create_text_file(tmp_path, json.dumps(conf_dict))
+        uio.create_text_file(tmp_path, json.dumps(conf_dict, indent=2))
         config_file = tmp_path
     if not uio.file_exists(config_file):
         raise FileExistsError(config_file)
@@ -233,10 +233,14 @@ def get_tap_output_dir(tap_name: str, taps_dir: str) -> str:
     return result
 
 
+def get_custom_catalog_file(taps_dir: str, tap_name: str):
+    return f"{taps_dir}/{tap_name}-catalog-custom.json"
+
+
 def get_raw_catalog_file(
     taps_dir: str, catalog_dir: str, tap_name: str, allow_custom: bool = True
 ):
-    custom_catalog_path = f"{taps_dir}/{tap_name}-catalog-custom.json"
+    custom_catalog_path = get_custom_catalog_file(taps_dir, tap_name)
     catalog_file = f"{catalog_dir}/{tap_name}-catalog-raw.json"
     if allow_custom and uio.file_exists(custom_catalog_path):
         logging.info(f"Using custom catalog file: {custom_catalog_path}")
@@ -306,7 +310,7 @@ def get_single_table_target_config_file(
         config_defaults, tap_name, table_name, pipeline_version_num
     )
     new_file_path = target_config_file.replace(".json", f"-{table_name}.json")
-    uio.create_text_file(new_file_path, json.dumps(new_config))
+    uio.create_text_file(new_file_path, json.dumps(new_config, indent=2))
     return new_file_path
 
 
