@@ -84,6 +84,7 @@ def _discover(
 def _infer_schema(
     tap_name: str,
     taps_dir: str,
+    raw_catalog_file: str,
     selected_catalog_file: str,
     *,
     config_file: str,
@@ -91,11 +92,20 @@ def _infer_schema(
     dockerized: bool,
     tap_exe: str,
 ) -> str:
-    custom_catalog = json.loads(uio.get_text_file_contents(selected_catalog_file))
+    custom_catalog = json.loads(uio.get_text_file_contents(raw_catalog_file))
     tmp_folder = f"{catalog_dir}/tmp"
     tmp_outfile = f"{catalog_dir}/tmp/sync-dryrun.jsonl"
     uio.create_folder(catalog_dir)
     uio.create_folder(tmp_folder)
+    logging.info(f"Cleaning up old files in tmp folder '{tmp_folder}'...")
+    for file in uio.list_files(tmp_folder):
+        if any(
+            [
+                file.endswith(x)
+                for x in ["-config.json", "-dryrun.jsonl", "-table.inferred.json"]
+            ]
+        ):
+            uio.delete_file(file)
     img = f"{docker.BASE_DOCKER_REPO}:{tap_exe}"
     hide_cmd = False
     if dockerized:
@@ -356,6 +366,24 @@ def _get_rules_file_keys(
     return result
 
 
+def _get_table_keys(
+    matches: Dict[str, Dict[str, bool]], catalog_file: str, rules_file: str
+) -> Tuple[Dict[str, List[str]], Dict[str, List[str]]]:
+    primary_keys = _get_catalog_file_keys(
+        "primary-key", matches=matches, catalog_file=catalog_file
+    )
+    replication_keys = _get_catalog_file_keys(
+        "replication-key", matches=matches, catalog_file=catalog_file,
+    )
+    primary_keys.update(
+        _get_rules_file_keys("primary-key", matches=matches, rules_file=rules_file)
+    )
+    replication_keys.update(
+        _get_rules_file_keys("replication-key", matches=matches, rules_file=rules_file)
+    )
+    return primary_keys, replication_keys
+
+
 def get_table_list(
     table_filter: Optional[Union[str, List[str]]],
     exclude_tables: Optional[Union[str, List[str]]],
@@ -487,25 +515,18 @@ def plan(
             dockerized=dockerized,
             tap_exe=tap_exe,
         )
+    logging.info(f"Using catalog file for initial plan: {raw_catalog_file}")
     rules_file = config.get_rules_file(taps_dir, tap_name)
     matches, excluded_tables = _check_rules(
         catalog_file=raw_catalog_file, rules_file=rules_file
     )
-    primary_keys = _get_catalog_file_keys(
-        "primary-key", matches=matches, catalog_file=raw_catalog_file
-    )
-    replication_keys = _get_catalog_file_keys(
-        "replication-key", matches=matches, catalog_file=raw_catalog_file,
-    )
-    primary_keys.update(
-        _get_rules_file_keys("primary-key", matches=matches, rules_file=rules_file)
-    )
-    replication_keys.update(
-        _get_rules_file_keys("replication-key", matches=matches, rules_file=rules_file)
+    primary_keys, replication_keys = _get_table_keys(
+        matches, raw_catalog_file, rules_file
     )
     file_text = _make_plan_file_text(
         matches, primary_keys, replication_keys, excluded_tables
     )
+    logging.info(f"Updating plan file: {plan_file}")
     uio.create_text_file(plan_file, file_text)
     _create_selected_catalog(
         tap_name,
@@ -519,15 +540,23 @@ def plan(
         custom_catalog_file = _infer_schema(
             tap_name,
             taps_dir,
+            raw_catalog_file=raw_catalog_file,
             selected_catalog_file=selected_catalog_file,
             config_file=config_file,
             catalog_dir=catalog_dir,
             dockerized=dockerized,
             tap_exe=tap_exe,
         )
+        matches, excluded_tables = _check_rules(
+            catalog_file=custom_catalog_file, rules_file=rules_file
+        )
+        primary_keys, replication_keys = _get_table_keys(
+            matches, custom_catalog_file, rules_file
+        )
         file_text = _make_plan_file_text(
             matches, primary_keys, replication_keys, excluded_tables
         )
+        logging.info(f"Updating plan file: {plan_file}")
         uio.create_text_file(plan_file, file_text)
         _create_selected_catalog(
             tap_name,
@@ -617,7 +646,8 @@ def _get_table_name(table_object: dict) -> str:
 
 @logged(
     "selecting catalog metadata "
-    "from '{tap_name}' source catalog file: {raw_catalog_file}"
+    "from '{tap_name}' source catalog file: {raw_catalog_file}",
+    success_msg=False,
 )
 def _create_selected_catalog(
     tap_name: str,
@@ -658,7 +688,8 @@ def _create_selected_catalog(
 
 @logged(
     "validating selected catalog metadata "
-    "from '{tap_name}' selected catalog file: {selected_catalog_file}"
+    "from '{tap_name}' selected catalog file: {selected_catalog_file}",
+    success_msg=False,
 )
 def _validate_selected_catalog(tap_name: str, selected_catalog_file: str,) -> None:
     selected_catalog = json.loads(Path(selected_catalog_file).read_text())
