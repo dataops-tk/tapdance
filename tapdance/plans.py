@@ -90,8 +90,7 @@ def _infer_schema(
     catalog_dir: str,
     dockerized: bool,
     tap_exe: str,
-) -> None:
-    custom_catalog_file = config.get_custom_catalog_file(taps_dir, tap_name)
+) -> str:
     custom_catalog = json.loads(uio.get_text_file_contents(selected_catalog_file))
     tmp_folder = f"{catalog_dir}/tmp"
     tmp_outfile = f"{catalog_dir}/tmp/sync-dryrun.jsonl"
@@ -149,8 +148,9 @@ def _infer_schema(
                     f" Stream not present in catalog file {selected_catalog_file}."
                 )
             stream["schema"] = inferred_schema
-
+    custom_catalog_file = config.get_custom_catalog_file(taps_dir, tap_name)
     uio.create_text_file(custom_catalog_file, json.dumps(custom_catalog, indent=2))
+    return custom_catalog_file
 
 
 def _check_rules(
@@ -412,13 +412,16 @@ def plan(
 ) -> None:
     """Perform all actions necessary to prepare (plan) for a tap execution.
 
-     1. Scan (discover) the source system metadata (if catalog missing or `rescan=True`)
-     2. Apply filter rules from `rules_file` and create human-readable `plan.yml` file to
-        describe planned inclusions/exclusions.
-     3. Add primary-key and replication-key to the catalog.json file if specified in the
-        rules file.
-     4. Create a new `catalog-selected.json` file which applies the plan file and which
-        can be used by the tap to run data extractions.
+    1. Capture raw catalog schema using discover (if needed or if --rescan).
+    2. If it exists, use the 'custom' catalog file in place of the 'raw' catalog.
+    3. Create the plan file and 'selected' version of the raw schema using
+       `*.rules.txt`.
+        - Add primary-key and replication-key to the catalog.json file if specified in the
+          rules file.
+    4. If infer_custom_schema=true:
+        - Use the 'selected' catalog to execute a dry run for 'infer_custom_schema'.
+        - Create or update the 'custom' catalog file using inferred schema.
+        - Rebuild the plan file and rebuild the 'selected' catalog.
 
     Parameters:
     -----------
@@ -468,23 +471,12 @@ def plan(
         "REPLICATION_STRATEGY", "INCREMENTAL"
     )
     config.validate_replication_strategy(replication_strategy)
-
-    # TODO: Resolve bug in Windows STDERR inclusion when emitting catalog json from
-    #       docker run
-    # if (dockerized is None) and (uio.is_windows() or uio.is_mac()):
-    #     dockerized = True
-    #     logging.info(
-    #         "The 'dockerized' argument is not set when running either Windows or OSX. "
-    #         "Defaulting to dockerized=True..."
-    #     )
-
     catalog_dir = config.get_tap_output_dir(tap_name, taps_dir)
     raw_catalog_file = config.get_raw_catalog_file(
         taps_dir, catalog_dir, tap_name, allow_custom=True
     )
     selected_catalog_file = f"{catalog_dir}/{tap_name}-catalog-selected.json"
     plan_file = config.get_plan_file(tap_name, taps_dir, required=False)
-
     if rescan or not uio.file_exists(raw_catalog_file):
         # Run discover, if needed, to get catalog.json (raw)
         _discover(
@@ -496,38 +488,42 @@ def plan(
             tap_exe=tap_exe,
         )
     rules_file = config.get_rules_file(taps_dir, tap_name)
-    for x in [0, 1]:
-        if x == 1:
-            if not infer_custom_schema:
-                # No need to run second loop
-                break
-            elif infer_custom_schema:
-                # Run discover, if needed, to get catalog.json (raw)
-                _infer_schema(
-                    tap_name,
-                    taps_dir,
-                    selected_catalog_file=selected_catalog_file,
-                    config_file=config_file,
-                    catalog_dir=catalog_dir,
-                    dockerized=dockerized,
-                    tap_exe=tap_exe,
-                )
-        matches, excluded_tables = _check_rules(
-            catalog_file=raw_catalog_file, rules_file=rules_file
-        )
-        primary_keys = _get_catalog_file_keys(
-            "primary-key", matches=matches, catalog_file=raw_catalog_file
-        )
-        primary_keys.update(
-            _get_rules_file_keys("primary-key", matches=matches, rules_file=rules_file)
-        )
-        replication_keys = _get_catalog_file_keys(
-            "replication-key", matches=matches, catalog_file=raw_catalog_file,
-        )
-        replication_keys.update(
-            _get_rules_file_keys(
-                "replication-key", matches=matches, rules_file=rules_file,
-            )
+    matches, excluded_tables = _check_rules(
+        catalog_file=raw_catalog_file, rules_file=rules_file
+    )
+    primary_keys = _get_catalog_file_keys(
+        "primary-key", matches=matches, catalog_file=raw_catalog_file
+    )
+    replication_keys = _get_catalog_file_keys(
+        "replication-key", matches=matches, catalog_file=raw_catalog_file,
+    )
+    primary_keys.update(
+        _get_rules_file_keys("primary-key", matches=matches, rules_file=rules_file)
+    )
+    replication_keys.update(
+        _get_rules_file_keys("replication-key", matches=matches, rules_file=rules_file)
+    )
+    file_text = _make_plan_file_text(
+        matches, primary_keys, replication_keys, excluded_tables
+    )
+    uio.create_text_file(plan_file, file_text)
+    _create_selected_catalog(
+        tap_name,
+        plan_file=plan_file,
+        raw_catalog_file=raw_catalog_file,
+        output_file=selected_catalog_file,
+        replication_strategy=replication_strategy,
+        skip_senseless_validators=SKIP_SENSELESS_VALIDATORS,
+    )
+    if infer_custom_schema:
+        custom_catalog_file = _infer_schema(
+            tap_name,
+            taps_dir,
+            selected_catalog_file=selected_catalog_file,
+            config_file=config_file,
+            catalog_dir=catalog_dir,
+            dockerized=dockerized,
+            tap_exe=tap_exe,
         )
         file_text = _make_plan_file_text(
             matches, primary_keys, replication_keys, excluded_tables
@@ -536,7 +532,7 @@ def plan(
         _create_selected_catalog(
             tap_name,
             plan_file=plan_file,
-            raw_catalog_file=raw_catalog_file,
+            raw_catalog_file=custom_catalog_file,
             output_file=selected_catalog_file,
             replication_strategy=replication_strategy,
             skip_senseless_validators=SKIP_SENSELESS_VALIDATORS,
