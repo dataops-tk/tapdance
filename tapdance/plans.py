@@ -197,8 +197,11 @@ def _check_rules(
     matches: Dict[str, dict] = {}
     excluded_table_list = []
     for table_name, table_object in _get_catalog_tables_dict(catalog_file).items():
-        table_match_text = f"{table_name}"
-        if _table_match_check(table_match_text, select_rules):
+        if _table_match_check(
+            table_name=table_name,
+            stream_id=table_object.get("tap_stream_id", table_name),
+            select_rules=select_rules,
+        ):
             matches[table_name] = {}
             for col_object in _get_catalog_table_columns(table_object):
                 col_name = col_object
@@ -524,7 +527,7 @@ def plan(
         matches, raw_catalog_file, rules_file
     )
     file_text = _make_plan_file_text(
-        matches, primary_keys, replication_keys, excluded_tables
+        matches, primary_keys, replication_keys, excluded_tables, raw_catalog_file
     )
     logging.info(f"Updating plan file: {plan_file}")
     uio.create_text_file(plan_file, file_text)
@@ -554,7 +557,11 @@ def plan(
             matches, custom_catalog_file, rules_file
         )
         file_text = _make_plan_file_text(
-            matches, primary_keys, replication_keys, excluded_tables
+            matches,
+            primary_keys,
+            replication_keys,
+            excluded_tables,
+            custom_catalog_file,
         )
         logging.info(f"Updating plan file: {plan_file}")
         uio.create_text_file(plan_file, file_text)
@@ -574,7 +581,9 @@ def _make_plan_file_text(
     primary_keys: Dict[str, List[str]],
     replication_keys: Dict[str, List[str]],
     excluded_tables_list: List[str],
+    catalog_file: str,
 ) -> str:
+    catalog_dict = _get_catalog_tables_dict(catalog_file)
     sorted_tables = sorted(matches.keys())
 
     file_text = ""
@@ -591,6 +600,9 @@ def _make_plan_file_text(
         ]
         ignored_cols = [col for col, selected in matches[table].items() if not selected]
         file_text += f"{' ' * 2}{table}:\n"
+        stream_id = catalog_dict[table].get("tap_stream_id", table)
+        if table != stream_id:
+            file_text += f"{' ' * 4}stream_id: {stream_id}\n"
         file_text += f"{' ' * 4}primary_key:\n"
         for col in primary_key_cols:
             file_text += f"{' ' * 6}- {col}\n"
@@ -638,6 +650,10 @@ def _get_stream_name(table_object: dict) -> str:
     return table_object["stream"]
 
 
+def _get_stream_id(table_object: dict) -> str:
+    return table_object.get("tap_stream_id", _get_stream_name(table_object))
+
+
 def _get_table_name(table_object: dict) -> str:
     return table_object.get(
         "table_name", table_object.get("stream", table_object["tap_stream_id"])
@@ -668,7 +684,10 @@ def _create_selected_catalog(
     included_table_objects = []
     for tbl in sorted(catalog_full["streams"], key=lambda x: _get_stream_name(x)):
         stream_name = _get_stream_name(tbl)
-        if stream_name in plan["selected_tables"].keys():
+        stream_id = _get_stream_id(tbl)
+        if stream_name in plan["selected_tables"].keys() and stream_id == plan[
+            "selected_tables"
+        ][stream_name].get("stream_id", stream_name):
             _set_catalog_file_keys(tbl, plan["selected_tables"][stream_name])
             _select_table(tbl, replication_strategy=replication_strategy)
             for col_name in _get_catalog_table_columns(tbl):
@@ -791,10 +810,13 @@ def _create_single_table_catalog(
         json.dump(catalog_new, f, indent=2)
 
 
-def _table_match_check(match_text: str, select_rules: list) -> bool:
+def _table_match_check(table_name: str, stream_id: str, select_rules: list) -> bool:
     selected = False
     for rule in select_rules:
-        result = _check_table_rule(match_text, rule)
+        if rule.lstrip("!").startswith('"'):
+            result = _check_table_rule(stream_id, rule)
+        else:
+            result = _check_table_rule(table_name, rule)
         if result is True:
             selected = True
         elif result is False:
@@ -888,7 +910,7 @@ def _check_table_rule(match_text: str, rule_text: str) -> Optional[bool]:
         table_rule = ".".join(rule_text.split(".")[1:])
         if not _is_match(tap_name, tap_rule):
             return None
-    if not _is_match(table_name, table_rule):
+    if not _is_match(table_name.lstrip('"').rstrip('"'), table_rule):
         return None
     # Table '{match_text}' matched table filter '{table_rule}' in '{rule_text}'"
     return match_result
