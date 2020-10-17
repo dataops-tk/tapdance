@@ -24,6 +24,7 @@ ENV_PIPELINE_VERSION_NUMBER = "PIPELINE_VERSION_NUMBER"
 ENV_TAP_SECRETS_DIR = "TAP_SECRETS_DIR"
 ENV_TAP_SCRATCH_DIR = "TAP_SCRATCH_DIR"
 ENV_TAP_CONFIG_DIR = "TAP_CONFIG_DIR"
+ENV_TAP_LOG_DIR = "TAP_LOG_DIR"
 ENV_TAP_STATE_FILE = "TAP_STATE_FILE"
 
 
@@ -192,6 +193,11 @@ def get_taps_dir(override: str = None) -> str:
     """
     taps_dir = override or os.environ.get(ENV_TAP_CONFIG_DIR, ".")
     return uio.make_local(taps_dir)  # if remote path provided, download locally
+
+
+def get_log_dir(override: str = None) -> Optional[str]:
+    """Return the remote logging dir, or None if logging not configured."""
+    return override or os.environ.get(ENV_TAP_LOG_DIR, None)
 
 
 def get_plan_file(tap_name: str, taps_dir: str = None, required: bool = True) -> str:

@@ -27,6 +27,7 @@ def sync(
     catalog_dir: Optional[str] = None,
     target_config_file: Optional[str] = None,
     state_file: Optional[str] = None,
+    log_dir: Optional[str] = None,
     exclude_tables: Optional[List[str]] = None,
     replication_strategy: Optional[str] = None,
 ) -> None:
@@ -75,6 +76,9 @@ def sync(
     state_file : {str}
         The path to a state file. If not provided, a state
         file path will be generated automatically within `catalog_dir`.
+    log_dir : {str}
+        Optional. The location to publish logs and other artifacts. If omitted, no
+        extra publishing will be performed.
     exclude_tables: {List(str)}
         A list of tables to exclude. Ignored
         if table_name arg is not "*".
@@ -119,6 +123,7 @@ def sync(
     #         )
 
     catalog_dir = catalog_dir or config.get_tap_output_dir(tap_name, taps_dir)
+    log_dir = config.get_log_dir(log_dir)
     full_catalog_file = f"{catalog_dir}/{tap_name}-catalog-selected.json"
     if rescan or rules_file or not uio.file_exists(full_catalog_file):
         plans.plan(
@@ -129,6 +134,7 @@ def sync(
             taps_dir=taps_dir,
             config_file=config_file,
             config_dir=catalog_dir,
+            log_dir=log_dir,
         )
     list_of_tables = plans.get_table_list(
         table_filter=table_name,
@@ -159,6 +165,7 @@ def sync(
             target_config_file=target_config_file,
             table_catalog_file=tmp_catalog_file,
             table_state_file=table_state_file,
+            log_dir=log_dir,
             dockerized=dockerized,
             tap_exe=tap_exe,
             target_exe=target_exe,
@@ -175,6 +182,7 @@ def _sync_one_table(
     target_config_file: str,
     table_catalog_file: str,
     table_state_file: str,
+    log_dir: str,
     dockerized: bool,
     tap_exe: str,
     target_exe: str,

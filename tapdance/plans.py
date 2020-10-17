@@ -1,5 +1,6 @@
 """tapdance.plans - Defines plan() function and discovery helper functions."""
 
+from datetime import datetime
 import json
 import os
 from pathlib import Path
@@ -439,6 +440,7 @@ def plan(
     taps_dir: str = None,
     config_dir: str = None,
     config_file: str = None,
+    log_dir: str = None,
     replication_strategy: str = None,
 ) -> None:
     """Perform all actions necessary to prepare (plan) for a tap execution.
@@ -476,6 +478,9 @@ def plan(
     config_file : {str}
         The location of the JSON config file which contains config for the specified
         plugin. (Default=f"${config_dir}/${plugin_name}-config.json")
+    log_dir : {str}
+        Optional. The location to publish logs and other artifacts. If omitted, no
+        extra publishing will be performed.
     replication_strategy : {str}
         One of "FULL_TABLE", "INCREMENTAL", or "LOG_BASED"; by default "INCREMENTAL" or
         a value is set in the TAP_{TAPNAME}_REPLICATION_STRATEGY environment variable.
@@ -503,6 +508,7 @@ def plan(
     )
     config.validate_replication_strategy(replication_strategy)
     catalog_dir = config.get_tap_output_dir(tap_name, taps_dir)
+    log_dir = config.get_log_dir(log_dir)
     raw_catalog_file = config.get_raw_catalog_file(
         taps_dir, catalog_dir, tap_name, allow_custom=True
     )
@@ -574,6 +580,15 @@ def plan(
             skip_senseless_validators=SKIP_SENSELESS_VALIDATORS,
         )
     _validate_selected_catalog(tap_name, selected_catalog_file=selected_catalog_file)
+    if log_dir:
+        for publish_loc in [
+            f"{log_dir}/",
+            f"{log_dir}/{datetime.utcnow().strftime('%Y/%m/%d')}",
+        ]:
+            uio.upload_file(rules_file, publish_loc)
+            uio.upload_file(plan_file, publish_loc)
+            uio.upload_file(raw_catalog_file, publish_loc)
+            uio.upload_file(selected_catalog_file, publish_loc)
 
 
 def _make_plan_file_text(
