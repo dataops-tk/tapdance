@@ -524,6 +524,7 @@ def plan(
             dockerized=dockerized,
             tap_exe=tap_exe,
         )
+    config.push_logs(log_dir, [raw_catalog_file])
     logging.info(f"Using catalog file for initial plan: {raw_catalog_file}")
     rules_file = config.get_rules_file(taps_dir, tap_name)
     matches, excluded_tables = _check_rules(
@@ -537,6 +538,7 @@ def plan(
     )
     logging.info(f"Updating plan file: {plan_file}")
     uio.create_text_file(plan_file, file_text)
+    config.push_logs(log_dir, [rules_file, plan_file])
     _create_selected_catalog(
         tap_name,
         plan_file=plan_file,
@@ -545,6 +547,7 @@ def plan(
         replication_strategy=replication_strategy,
         skip_senseless_validators=SKIP_SENSELESS_VALIDATORS,
     )
+    config.push_logs(log_dir, [selected_catalog_file])
     if infer_custom_schema:
         custom_catalog_file = _infer_schema(
             tap_name,
@@ -556,6 +559,7 @@ def plan(
             dockerized=dockerized,
             tap_exe=tap_exe,
         )
+        config.push_logs(log_dir, [custom_catalog_file])
         matches, excluded_tables = _check_rules(
             catalog_file=custom_catalog_file, rules_file=rules_file
         )
@@ -571,6 +575,7 @@ def plan(
         )
         logging.info(f"Updating plan file: {plan_file}")
         uio.create_text_file(plan_file, file_text)
+        config.push_logs(log_dir, [plan_file])
         _create_selected_catalog(
             tap_name,
             plan_file=plan_file,
@@ -579,16 +584,8 @@ def plan(
             replication_strategy=replication_strategy,
             skip_senseless_validators=SKIP_SENSELESS_VALIDATORS,
         )
+        config.push_logs(log_dir, [selected_catalog_file])
     _validate_selected_catalog(tap_name, selected_catalog_file=selected_catalog_file)
-    if log_dir:
-        for publish_loc in [
-            f"{log_dir}/",
-            f"{log_dir}/{datetime.utcnow().strftime('%Y/%m/%d')}",
-        ]:
-            uio.upload_file(rules_file, publish_loc)
-            uio.upload_file(plan_file, publish_loc)
-            uio.upload_file(raw_catalog_file, publish_loc)
-            uio.upload_file(selected_catalog_file, publish_loc)
 
 
 def _make_plan_file_text(

@@ -1,11 +1,12 @@
 """tapdance.config - Helper functions for dealing with paths."""
 
+import datetime
 import json
 import os
 from pathlib import Path
 
 from logless import get_logger, logged
-from typing import Optional, Dict, Any, Tuple, List
+from typing import Optional, Dict, Any, Tuple, List, Union
 import uio
 
 logging = get_logger("tapdance")
@@ -17,6 +18,7 @@ SINGER_PLUGINS_INDEX = os.environ.get("SINGER_PLUGINS_INDEX", "./singer_index.ym
 VENV_ROOT = "/venv"
 INSTALL_ROOT = "/usr/bin"
 _ROOT_DIR = "/projects/my-project"
+_TIMESTAMP = datetime.datetime.utcnow()
 # _ROOT_DIR = "."
 
 ENV_PIPELINE_VERSION_NUMBER = "PIPELINE_VERSION_NUMBER"
@@ -198,6 +200,37 @@ def get_taps_dir(override: str = None) -> str:
 def get_log_dir(override: str = None) -> Optional[str]:
     """Return the remote logging dir, or None if logging not configured."""
     return override or os.environ.get(ENV_TAP_LOG_DIR, None)
+
+
+def get_batch_timestamp() -> datetime.datetime:
+    """Return the timestamp. Subsequent calls will always return the same value."""
+    return _TIMESTAMP
+
+
+def get_batch_datestamp(format_str: str = None) -> Union[datetime.date, str]:
+    """Return the datestamp. Subsequent calls will always return the same value.
+
+    - For example, `%Y-%m-%d' to return 'YYYY-MM-DD'.
+    - If format_str is None, returns a datetime.date value.
+    """
+    date_val = get_batch_timestamp().date()
+    if format_str:
+        return date_val.strftime("%Y/%m/%d")
+
+
+def push_logs(log_dir: Optional[str], files_list: List[str]) -> List[str]:
+    """Pushes the specified list of log files if they exist and log_dir is not None."""
+    if not log_dir:
+        return []
+    uploaded_files = []
+    for publish_loc in [
+        f"{log_dir}/",
+        f"{log_dir}/{get_batch_datestamp('%Y/%m/%d')}",
+    ]:
+        for log_file in files_list:
+            if uio.file_exists(log_file):
+                uploaded_files.append(uio.upload_file(log_file, publish_loc))
+    return uploaded_files
 
 
 def get_plan_file(tap_name: str, taps_dir: str = None, required: bool = True) -> str:
