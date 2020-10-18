@@ -225,7 +225,7 @@ def push_logs(log_dir: Optional[str], files_list: List[str]) -> List[str]:
     uploaded_files = []
     for publish_loc in [
         f"{log_dir}/",
-        f"{log_dir}/{get_batch_datestamp('%Y/%m/%d')}",
+        f"{os.path.join(log_dir, str(get_batch_datestamp('%Y/%m/%d')))}/",
     ]:
         for log_file in files_list:
             if uio.file_exists(log_file):
