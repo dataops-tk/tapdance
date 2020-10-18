@@ -212,9 +212,8 @@ def _check_rules(
             matches[table_name] = {}
             for col_object in _get_catalog_table_columns(table_object):
                 col_name = col_object
-                col_match_text = f"{table_name}.{col_name}"
                 matches[table_name][col_name] = _col_match_check(
-                    col_match_text, select_rules
+                    table_name, stream_id, col_name, select_rules
                 )
         else:
             if table_name in excluded_table_stream_ids:
@@ -874,10 +873,15 @@ def _table_match_check(table_name: str, stream_id: str, select_rules: list) -> b
     return selected
 
 
-def _col_match_check(match_text: str, select_rules: list) -> bool:
+def _col_match_check(
+    table_name: str, stream_id: str, col_name: str, select_rules: list
+) -> bool:
     selected = False
     for rule in select_rules:
-        result = _check_column_rule(match_text, rule)
+        if rule.lstrip("!").startswith('"'):
+            result = _check_column_rule(f"{stream_id}.{col_name}", rule)
+        else:
+            result = _check_column_rule(f"{table_name}.{col_name}", rule)
         if result is True:
             selected = True
         elif result is False:
@@ -917,9 +921,9 @@ def _check_column_rule(match_text: str, rule_text: str) -> Optional[bool]:
         rule_text = rule_text[1:]
     else:
         match_result = True  # Include if matched
-    table_match = rule_text.split(".")[0]
+    table_rule = rule_text.split(".")[0].lstrip('"').rstrip('"')
     column_match = ".".join(rule_text.split(".")[1:])
-    if not _is_match(match_text.split(".")[0], table_match):
+    if not _is_match(match_text.split(".")[0], table_rule):
         # Non-matching table part; skip!
         return None
     if not _is_match(match_text.split(".")[1], column_match):
