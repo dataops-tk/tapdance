@@ -164,28 +164,64 @@ def _infer_schema(
 
 
 def _check_rules(
-    catalog_file: str, rules_file: List[str]
-) -> Tuple[Dict[str, Dict[str, bool]], List[str]]:
-    """Evaluate rules against the contents of a catalog file.
+    tap_name: str,
+    catalog_file: str,
+    rules_file: str,
+    replication_strategy: str,
+    plan_file_out: str,
+    selected_catalog_file_out: str,
+    log_dir: Optional[str],
+) -> None:
+    """
+    Create plan file and selected catalog file from provided rules and raw catalog.
 
     Parameters
     ----------
     catalog_file : str
         Path to a catalog file.
-    rules_file : List[str]
+    rules_file : str
         Path to a rules file.
-
-    Returns
-    -------
-    Tuple[Dict[str, Dict[str, bool]], List[str]]
-        - Dictionary of tables names to dictionary of column names having values of True
-          (selected) or False (ignored)
-        - List of excluded tables
+    plan_file_out : str
+        Path to save the plan file.
+    selected_catalog_file_out : str
+        Path to save the selected catalog file.
     """
     select_rules = [
         line.split("#")[0].rstrip()
         for line in uio.get_text_file_contents(rules_file).splitlines()
         if line.split("#")[0].rstrip()
+    ]
+    matches: Dict[str, dict] = {}
+    excluded_table_stream_ids: Dict[str, List[str]] = {}
+    matched_stream_ids: Dict[str, str] = {}
+    for stream_id, table_object in _get_catalog_tables_dict(catalog_file).items():
+        table_name = _get_stream_name(table_object)
+        if _table_match_check(
+            table_name=table_name, stream_id=stream_id, select_rules=select_rules,
+        ):
+            if table_name in matched_stream_ids:
+                raise RuntimeError(
+                    f"Table name '{table_name}' matched multiple stream IDs: "
+                    f'"{matched_stream_ids[table_name]}" and "{stream_id}". '
+                    "This is most often caused by tables with the same name under "
+                    "different source database schemas. Please qualify or disqualify "
+                    "specific stream name patterns by using double-quoted stream IDs "
+                    "in your rules file instead of or in addition to bare table names."
+                )
+            matched_stream_ids[table_name] = stream_id
+            matches[table_name] = {}
+            for col_object in _get_catalog_table_columns(table_object):
+                col_name = col_object
+                matches[table_name][col_name] = _col_match_check(
+                    table_name, stream_id, col_name, select_rules
+                )
+        else:
+            if table_name in excluded_table_stream_ids:
+                excluded_table_stream_ids[table_name].append(stream_id)
+            else:
+                excluded_table_stream_ids[table_name] = [stream_id]
+    all_matches_lower = [m.lower() for m in matches.keys()] + [
+        f'"{m.lower()}"' for m in matched_stream_ids.values()
     ]
     declared_tables = set(
         [
@@ -194,36 +230,41 @@ def _check_rules(
             if rule.split(".")[0].rstrip() and ("*" not in rule.split(".")[0])
         ]
     )
-    matches: Dict[str, dict] = {}
-    excluded_table_list = []
-    for table_name, table_object in _get_catalog_tables_dict(catalog_file).items():
-        if _table_match_check(
-            table_name=table_name,
-            stream_id=table_object.get("tap_stream_id", table_name),
-            select_rules=select_rules,
-        ):
-            matches[table_name] = {}
-            for col_object in _get_catalog_table_columns(table_object):
-                col_name = col_object
-                col_match_text = f"{table_name}.{col_name}"
-                matches[table_name][col_name] = _col_match_check(
-                    col_match_text, select_rules
-                )
-        else:
-            excluded_table_list.append(table_name)
     for required_table in declared_tables:
-        if required_table not in matches.keys():
+        if required_table.lower() not in all_matches_lower:
             logging.warning(
-                f"The table {required_table} was declared in the rules file "
+                f"The table '{required_table}' was declared in the rules file "
                 "but could not be found in the catalog."
             )
     for match, match_cols in matches.items():
         if not match_cols:
             logging.warning(
-                f"The table {match} was declared in the rules file "
+                f"The table '{match}' was declared in the rules file "
                 "but did not match with any columns in the catalog."
             )
-    return matches, excluded_table_list
+    primary_keys, replication_keys = _get_table_keys(
+        matches, matched_stream_ids, catalog_file, rules_file
+    )
+    file_text = _make_plan_file_text(
+        matches,
+        primary_keys,
+        replication_keys,
+        matched_stream_ids,
+        excluded_table_stream_ids,
+    )
+    logging.info(f"Updating plan file: {plan_file_out}")
+    uio.create_text_file(plan_file_out, file_text)
+    config.push_logs(log_dir, [rules_file, plan_file_out])
+    _create_selected_catalog(
+        tap_name,
+        plan_file=plan_file_out,
+        raw_catalog_file=catalog_file,
+        output_file=selected_catalog_file_out,
+        replication_strategy=replication_strategy,
+        skip_senseless_validators=SKIP_SENSELESS_VALIDATORS,
+    )
+    config.push_logs(log_dir, [selected_catalog_file_out])
+    # return matches, excluded_table_list
 
 
 def _validate_keys(table_object: dict, key_type: str):
@@ -303,6 +344,7 @@ def _set_catalog_file_keys(table_object: dict, table_plan: dict):
 def _get_catalog_file_keys(
     key_type: str,
     matches: Dict[str, Dict[str, bool]],
+    matched_stream_ids: Dict[str, str],
     catalog_file: str,
     warn_if_missing: bool = False,
 ) -> Dict[str, List[str]]:
@@ -325,10 +367,13 @@ def _get_catalog_file_keys(
         Mapping of table names to each table's list of keys
     """
     result: Dict[str, List[str]] = {}
-    for table_name, table_object in sorted(
+    for stream_id, table_object in sorted(
         _get_catalog_tables_dict(catalog_file).items()
     ):
+        table_name = _get_stream_name(table_object)
         if table_name not in matches.keys():
+            continue
+        if stream_id != matched_stream_ids[table_name]:
             continue
         result[table_name] = _get_table_key_cols(
             key_type, table_object, warn_if_missing=warn_if_missing
@@ -370,23 +415,41 @@ def _get_rules_file_keys(
 
 
 def _get_table_keys(
-    matches: Dict[str, Dict[str, bool]], catalog_file: str, rules_file: str
+    matches: Dict[str, Dict[str, bool]],
+    matched_stream_ids: Dict[str, str],
+    catalog_file: str,
+    rules_file: str,
 ) -> Tuple[Dict[str, List[str]], Dict[str, List[str]]]:
-    primary_keys = _get_catalog_file_keys(
-        "primary-key", matches=matches, catalog_file=catalog_file
-    )
-    replication_keys = _get_catalog_file_keys(
-        "replication-key", matches=matches, catalog_file=catalog_file,
-    )
-    primary_keys.update(
-        _get_rules_file_keys("primary-key", matches=matches, rules_file=rules_file)
-    )
-    replication_keys.update(
-        _get_rules_file_keys("replication-key", matches=matches, rules_file=rules_file)
-    )
+    primary_keys: Dict[str, List[str]] = {}
+    replication_keys: Dict[str, List[str]] = {}
+    stream_name_lookup = {v: k for k, v in matched_stream_ids.items()}
+    for key_type, collection in [
+        ("primary-key", primary_keys),
+        ("replication-key", replication_keys),
+    ]:
+        collection.update(
+            _get_catalog_file_keys(
+                key_type,
+                matches=matches,
+                matched_stream_ids=matched_stream_ids,
+                catalog_file=catalog_file,
+            )
+        )
+        key_overrides = _get_rules_file_keys(
+            key_type, matches=matches, rules_file=rules_file
+        )
+        for table, override in key_overrides.items():
+            if table.startswith('"'):
+                table = stream_name_lookup[table.lstrip('"').rstrip('"')]
+            collection[table] = override
     return primary_keys, replication_keys
 
 
+@logged(
+    "getting table list using: filter={table_filter}, exclude={exclude_tables}, "
+    "and catalog={catalog_file}",
+    success_msg=None,
+)
 def get_table_list(
     table_filter: Optional[Union[str, List[str]]],
     exclude_tables: Optional[Union[str, List[str]]],
@@ -412,7 +475,12 @@ def get_table_list(
     if isinstance(table_filter, list):
         list_of_tables = table_filter
     elif table_filter is None or table_filter == "*":
-        list_of_tables = sorted(_get_catalog_tables_dict(catalog_file).keys())
+        list_of_tables = sorted(
+            [
+                _get_stream_name(x)
+                for x in _get_catalog_tables_dict(catalog_file).values()
+            ]
+        )
     elif table_filter[0] == "[":
         # Remove square brackets and split the result on commas
         list_of_tables = table_filter.replace("[", "").replace("]", "").split(",")
@@ -439,6 +507,7 @@ def plan(
     taps_dir: str = None,
     config_dir: str = None,
     config_file: str = None,
+    log_dir: str = None,
     replication_strategy: str = None,
 ) -> None:
     """Perform all actions necessary to prepare (plan) for a tap execution.
@@ -476,6 +545,9 @@ def plan(
     config_file : {str}
         The location of the JSON config file which contains config for the specified
         plugin. (Default=f"${config_dir}/${plugin_name}-config.json")
+    log_dir : {str}
+        Optional. The location to publish logs and other artifacts. If omitted, no
+        extra publishing will be performed.
     replication_strategy : {str}
         One of "FULL_TABLE", "INCREMENTAL", or "LOG_BASED"; by default "INCREMENTAL" or
         a value is set in the TAP_{TAPNAME}_REPLICATION_STRATEGY environment variable.
@@ -503,6 +575,7 @@ def plan(
     )
     config.validate_replication_strategy(replication_strategy)
     catalog_dir = config.get_tap_output_dir(tap_name, taps_dir)
+    log_dir = config.get_log_dir(log_dir)
     raw_catalog_file = config.get_raw_catalog_file(
         taps_dir, catalog_dir, tap_name, allow_custom=True
     )
@@ -518,26 +591,17 @@ def plan(
             dockerized=dockerized,
             tap_exe=tap_exe,
         )
+    config.push_logs(log_dir, [raw_catalog_file])
     logging.info(f"Using catalog file for initial plan: {raw_catalog_file}")
     rules_file = config.get_rules_file(taps_dir, tap_name)
-    matches, excluded_tables = _check_rules(
-        catalog_file=raw_catalog_file, rules_file=rules_file
-    )
-    primary_keys, replication_keys = _get_table_keys(
-        matches, raw_catalog_file, rules_file
-    )
-    file_text = _make_plan_file_text(
-        matches, primary_keys, replication_keys, excluded_tables, raw_catalog_file
-    )
-    logging.info(f"Updating plan file: {plan_file}")
-    uio.create_text_file(plan_file, file_text)
-    _create_selected_catalog(
-        tap_name,
-        plan_file=plan_file,
-        raw_catalog_file=raw_catalog_file,
-        output_file=selected_catalog_file,
+    _check_rules(
+        tap_name=tap_name,
+        catalog_file=raw_catalog_file,
+        rules_file=rules_file,
+        plan_file_out=plan_file,
+        selected_catalog_file_out=selected_catalog_file,
         replication_strategy=replication_strategy,
-        skip_senseless_validators=SKIP_SENSELESS_VALIDATORS,
+        log_dir=log_dir,
     )
     if infer_custom_schema:
         custom_catalog_file = _infer_schema(
@@ -550,28 +614,15 @@ def plan(
             dockerized=dockerized,
             tap_exe=tap_exe,
         )
-        matches, excluded_tables = _check_rules(
-            catalog_file=custom_catalog_file, rules_file=rules_file
-        )
-        primary_keys, replication_keys = _get_table_keys(
-            matches, custom_catalog_file, rules_file
-        )
-        file_text = _make_plan_file_text(
-            matches,
-            primary_keys,
-            replication_keys,
-            excluded_tables,
-            custom_catalog_file,
-        )
-        logging.info(f"Updating plan file: {plan_file}")
-        uio.create_text_file(plan_file, file_text)
-        _create_selected_catalog(
-            tap_name,
-            plan_file=plan_file,
-            raw_catalog_file=custom_catalog_file,
-            output_file=selected_catalog_file,
+        config.push_logs(log_dir, [custom_catalog_file])
+        _check_rules(
+            tap_name=tap_name,
+            catalog_file=custom_catalog_file,
+            rules_file=rules_file,
+            plan_file_out=plan_file,
+            selected_catalog_file_out=selected_catalog_file,
             replication_strategy=replication_strategy,
-            skip_senseless_validators=SKIP_SENSELESS_VALIDATORS,
+            log_dir=log_dir,
         )
     _validate_selected_catalog(tap_name, selected_catalog_file=selected_catalog_file)
 
@@ -580,15 +631,14 @@ def _make_plan_file_text(
     matches: Dict[str, Dict[str, bool]],
     primary_keys: Dict[str, List[str]],
     replication_keys: Dict[str, List[str]],
-    excluded_tables_list: List[str],
-    catalog_file: str,
+    table_stream_ids: Dict[str, str],
+    excluded_table_stream_ids: Dict[str, List[str]],
 ) -> str:
-    catalog_dict = _get_catalog_tables_dict(catalog_file)
     sorted_tables = sorted(matches.keys())
-
     file_text = ""
     file_text += "selected_tables:\n"
     for table in sorted_tables:
+        stream_id = table_stream_ids[table]
         primary_key_cols: List[str] = primary_keys[table]
         replication_key_cols: List[str] = replication_keys[table]
         included_cols = [
@@ -600,7 +650,6 @@ def _make_plan_file_text(
         ]
         ignored_cols = [col for col, selected in matches[table].items() if not selected]
         file_text += f"{' ' * 2}{table}:\n"
-        stream_id = catalog_dict[table].get("tap_stream_id", table)
         if table != stream_id:
             file_text += f"{' ' * 4}stream_id: {stream_id}\n"
         file_text += f"{' ' * 4}primary_key:\n"
@@ -616,10 +665,14 @@ def _make_plan_file_text(
             file_text += f"{' ' * 4}ignored_columns:\n"
             for col in ignored_cols:
                 file_text += f"{' ' * 6}- {col}\n"
-    if excluded_tables_list:
+    if excluded_table_stream_ids:
         file_text += "ignored_tables:\n"
-        for table in sorted(excluded_tables_list):
-            file_text += f"{' ' * 2}- {table}\n"
+        for table, stream_ids in sorted(excluded_table_stream_ids.items()):
+            if len(stream_ids) < 2 and table not in matches.keys():
+                file_text += f"{' ' * 2}- {table}\n"
+            else:
+                for id in stream_ids:
+                    file_text += f'{" " * 2}- {table} ("{id}")\n'
     return file_text
 
 
@@ -641,8 +694,9 @@ def _get_catalog_table_columns(table_object: dict) -> List[str]:
 
 
 def _get_catalog_tables_dict(catalog_file: str) -> dict:
+    """Return a dictionary of streams by their unique stream ID."""
     catalog_full = json.loads(Path(catalog_file).read_text())
-    table_objects = {_get_stream_name(s): s for s in catalog_full["streams"]}
+    table_objects = {_get_stream_id(s): s for s in catalog_full["streams"]}
     return table_objects
 
 
@@ -824,10 +878,15 @@ def _table_match_check(table_name: str, stream_id: str, select_rules: list) -> b
     return selected
 
 
-def _col_match_check(match_text: str, select_rules: list) -> bool:
+def _col_match_check(
+    table_name: str, stream_id: str, col_name: str, select_rules: list
+) -> bool:
     selected = False
     for rule in select_rules:
-        result = _check_column_rule(match_text, rule)
+        if rule.lstrip("!").startswith('"'):
+            result = _check_column_rule(f"{stream_id}.{col_name}", rule)
+        else:
+            result = _check_column_rule(f"{table_name}.{col_name}", rule)
         if result is True:
             selected = True
         elif result is False:
@@ -867,9 +926,9 @@ def _check_column_rule(match_text: str, rule_text: str) -> Optional[bool]:
         rule_text = rule_text[1:]
     else:
         match_result = True  # Include if matched
-    table_match = rule_text.split(".")[0]
+    table_rule = rule_text.split(".")[0].lstrip('"').rstrip('"')
     column_match = ".".join(rule_text.split(".")[1:])
-    if not _is_match(match_text.split(".")[0], table_match):
+    if not _is_match(match_text.split(".")[0], table_rule):
         # Non-matching table part; skip!
         return None
     if not _is_match(match_text.split(".")[1], column_match):
@@ -902,7 +961,7 @@ def _check_table_rule(match_text: str, rule_text: str) -> Optional[bool]:
         return None
     if USE_2PART_RULES:
         table_name = match_text.split(".")[0]
-        table_rule = rule_text.split(".")[0]
+        table_rule = rule_text.split(".")[0].lstrip('"').rstrip('"')
     else:  # Using 3-part rules, including tap name as first part
         tap_name = match_text.split(".")[0]
         tap_rule = rule_text.split(".")[0]
@@ -910,7 +969,8 @@ def _check_table_rule(match_text: str, rule_text: str) -> Optional[bool]:
         table_rule = ".".join(rule_text.split(".")[1:])
         if not _is_match(tap_name, tap_rule):
             return None
-    if not _is_match(table_name.lstrip('"').rstrip('"'), table_rule):
+    # logging.info(f"Checking for '{table_name}'...")
+    if not _is_match(table_name, table_rule):
         return None
     # Table '{match_text}' matched table filter '{table_rule}' in '{rule_text}'"
     return match_result
