@@ -563,22 +563,26 @@ def plan(
     config.print_version()
 
     taps_dir = config.get_taps_dir(taps_dir)
+    catalog_dir = config.get_tap_output_dir(tap_name, taps_dir)
+    raw_catalog_file = config.get_raw_catalog_file(
+        taps_dir, catalog_dir, tap_name, allow_custom=True
+    )
+    config_file_required = True
+    if config_file is None and uio.file_exists(raw_catalog_file) and not rescan:
+        config_file_required = False
     config_file, tap_settings = config.get_or_create_config(
         f"tap-{tap_name}",
         taps_dir=taps_dir,
         config_dir=config_dir,
         config_file=config_file,
+        config_file_required=config_file_required,
     )
     tap_exe = tap_exe or tap_settings.get("EXE", f"tap-{tap_name}")
     replication_strategy = replication_strategy or tap_settings.get(
         "REPLICATION_STRATEGY", "INCREMENTAL"
     )
     config.validate_replication_strategy(replication_strategy)
-    catalog_dir = config.get_tap_output_dir(tap_name, taps_dir)
     log_dir = config.get_log_dir(log_dir)
-    raw_catalog_file = config.get_raw_catalog_file(
-        taps_dir, catalog_dir, tap_name, allow_custom=True
-    )
     selected_catalog_file = f"{catalog_dir}/{tap_name}-catalog-selected.json"
     plan_file = config.get_plan_file(tap_name, taps_dir, required=False)
     if rescan or not uio.file_exists(raw_catalog_file):
