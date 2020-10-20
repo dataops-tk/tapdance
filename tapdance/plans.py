@@ -445,6 +445,11 @@ def _get_table_keys(
     return primary_keys, replication_keys
 
 
+@logged(
+    "getting table list using: filter={table_filter}, exclude={exclude_tables}, "
+    "and catalog={catalog_file}",
+    success_msg=None,
+)
 def get_table_list(
     table_filter: Optional[Union[str, List[str]]],
     exclude_tables: Optional[Union[str, List[str]]],
