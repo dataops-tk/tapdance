@@ -102,12 +102,12 @@ jobs:
         run: |
           if [[ "${{ github.ref }}" == *main ]]
           then
-            echo "::set-env name=PRE_FLAG::"
+            echo "PRE_FLAG=" >> $GITHUB_ENV
           elif [[ "${{ github.ref }}" == *master ]]
           then
-            echo "::set-env name=PRE_FLAG::"
+            echo "PRE_FLAG=" >> $GITHUB_ENV
           else
-            echo "::set-env name=PRE_FLAG::--pre"
+            echo "PRE_FLAG=--pre" >> $GITHUB_ENV
           fi
       - name: Print version, branch, and prerelease flag
         run: |
