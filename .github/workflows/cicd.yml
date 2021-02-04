@@ -90,6 +90,10 @@ jobs:
           export PIPERR=$(pip install tapdance==versioncheck 2>&1)
           if [[ $PIPERR == *"$VER"* ]]; then { echo "Yes"; } else { echo "Not yet found..."; sleep 30; } fi;
           export PIPERR=$(pip install tapdance==versioncheck 2>&1)
+          if [[ $PIPERR == *"$VER"* ]]; then { echo "Yes"; } else { echo "Not yet found..."; sleep 30; } fi;
+          export PIPERR=$(pip install tapdance==versioncheck 2>&1)
+          if [[ $PIPERR == *"$VER"* ]]; then { echo "Yes"; } else { echo "Not yet found..."; sleep 30; } fi;
+          export PIPERR=$(pip install tapdance==versioncheck 2>&1)
           if [[ $PIPERR == *"$VER"* ]]; then { echo "Yes"; } else { echo "Not found. Giving up. Last message from PyPi was $PIPERR"; exit 1; } fi;
 
   docker_builds:
