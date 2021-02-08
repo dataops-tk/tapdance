@@ -1,6 +1,6 @@
 # docker build -f tap-mssql.Dockerfile -t dataopstk/tapdance:tap-mssql .
 
-FROM docker.pkg.github.com/aaronsteers/tap-mssql/tap-mssql:latest as tap
+FROM ghcr.io/slalom/tap-mssql:latest as tap
 
 
 FROM python:3.7
