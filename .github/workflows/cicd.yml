@@ -85,21 +85,20 @@ jobs:
           pwd
           ls -la
           export VER=$(cat VERSION)
-          export VER=${VER#"v"}
-          export PIPERR=$(pip install tapdance==versioncheck 2>&1)
+          export PIPERR=$(pip install tapdance==$VER 2>&1)
           echo "Checking for PyPi availability of version $VER"
           if [[ $PIPERR == *"$VER"* ]]; then { echo "Yes"; } else { echo "Not yet found..."; sleep 30; } fi;
-          export PIPERR=$(pip install tapdance==versioncheck 2>&1)
+          export PIPERR=$(pip install tapdance==$VER 2>&1)
           if [[ $PIPERR == *"$VER"* ]]; then { echo "Yes"; } else { echo "Not yet found..."; sleep 30; } fi;
-          export PIPERR=$(pip install tapdance==versioncheck 2>&1)
+          export PIPERR=$(pip install tapdance==$VER 2>&1)
           if [[ $PIPERR == *"$VER"* ]]; then { echo "Yes"; } else { echo "Not yet found..."; sleep 30; } fi;
-          export PIPERR=$(pip install tapdance==versioncheck 2>&1)
+          export PIPERR=$(pip install tapdance==$VER 2>&1)
           if [[ $PIPERR == *"$VER"* ]]; then { echo "Yes"; } else { echo "Not yet found..."; sleep 30; } fi;
-          export PIPERR=$(pip install tapdance==versioncheck 2>&1)
+          export PIPERR=$(pip install tapdance==$VER 2>&1)
           if [[ $PIPERR == *"$VER"* ]]; then { echo "Yes"; } else { echo "Not yet found..."; sleep 30; } fi;
-          export PIPERR=$(pip install tapdance==versioncheck 2>&1)
+          export PIPERR=$(pip install tapdance==$VER 2>&1)
           if [[ $PIPERR == *"$VER"* ]]; then { echo "Yes"; } else { echo "Not yet found..."; sleep 30; } fi;
-          export PIPERR=$(pip install tapdance==versioncheck 2>&1)
+          export PIPERR=$(pip install tapdance==$VER 2>&1)
           if [[ $PIPERR == *"$VER"* ]]; then { echo "Yes"; } else { echo "Not found. Giving up. Last message from PyPi was $PIPERR"; exit 1; } fi;
 
   docker_builds:
@@ -113,12 +112,12 @@ jobs:
         run: |
           if [[ "${{ github.ref }}" == *main ]]
           then
-            echo "::set-env name=PRE_FLAG::"
+            echo "PRE_FLAG=" >> $GITHUB_ENV
           elif [[ "${{ github.ref }}" == *master ]]
           then
-            echo "::set-env name=PRE_FLAG::"
+            echo "PRE_FLAG=" >> $GITHUB_ENV
           else
-            echo "::set-env name=PRE_FLAG::--pre"
+            echo "PRE_FLAG=--pre" >> $GITHUB_ENV
           fi
       - name: Print version, branch, and prerelease flag
         run: |
@@ -142,13 +141,13 @@ jobs:
       - name: Build and push all *prioritized* singer images (build number ${{ github.run_number }})
         run: |
           cd docker
-          tapdance build_image mssql snowflake-test --push $PRE_FLAG
-          tapdance build_image pardot snowflake-test --push $PRE_FLAG
-          tapdance build_image salesforce snowflake-test --push $PRE_FLAG
-          tapdance build_image sftp snowflake-test --push $PRE_FLAG
-          tapdance build_image covid-19 s3-csv --push $PRE_FLAG
-          tapdance build_image covid-19 s3-csv-test --push $PRE_FLAG
+          poetry run tapdance build_image mssql snowflake-test --push $PRE_FLAG
+          poetry run tapdance build_image pardot snowflake-test --push $PRE_FLAG
+          poetry run tapdance build_image salesforce snowflake-test --push $PRE_FLAG
+          poetry run tapdance build_image sftp snowflake-test --push $PRE_FLAG
+          poetry run tapdance build_image covid-19 s3-csv --push $PRE_FLAG
+          poetry run tapdance build_image covid-19 s3-csv-test --push $PRE_FLAG
       - name: Build and push all singer images
-        run: cd docker && tapdance build_all_images --push $PRE_FLAG
+        run: cd docker && poetry run tapdance build_all_images --push $PRE_FLAG
       - name: Print list of images
         run: docker image ls

@@ -1,12 +1,12 @@
 [tool.poetry]
 name = "tapdance"
-version = "0.9.5"
+version = "0.9.6"
 description = "Tapdance is an orchestration layer for the open source Singer tap platform."
 authors = ["AJ Steers <aj.steers@slalom.com>"]
 license = "MIT"
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.7"
 docker = "^4.4.1"
 dock-r = "^0.2.0"
 fire = "^0.4.0"
@@ -16,12 +16,22 @@ runnow = "<0.2.0,>=0.1.0.14"
 uio = "^0.2.0"
 importlib-metadata = "^3.4.0"
 
+# Optional Extras:
+azure-storage-blob          = {version = "^12.7.1", optional = true}
+azure-storage-file-datalake = {version = "^12.2.3", optional = true}
+boto3                       = {version = "^1.17.5", optional = true}
+s3fs                        = {version = "<0.5.2",  optional = true}
+
 [tool.poetry.dev-dependencies]
 
 [tool.poetry.extras]
-AWS = ["boto3", "s3fs"]
-Azure = ["azure-storage-blob", "azure-storage-file-datalake"]
+aws = ["boto3", "s3fs"]
+azure = ["azure-storage-blob", "azure-storage-file-datalake"]
+
+[tool.poetry.scripts]
+tapdance = "tapdance.cli:main"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
+
