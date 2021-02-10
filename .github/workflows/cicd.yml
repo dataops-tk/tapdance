@@ -28,19 +28,20 @@ jobs:
         uses: actions/setup-python@v1
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install dependencies (python pip)
+      - name: Install pipx and poetry
         run: |
-          python3 -m pip install --upgrade pip
-          pip3 install flake8 pytest
+          python3 -m pip install pipx
+          python3 -m pipx ensurepath
+          pipx install poetry
       - name: Install tapdance
         run: |
-          python3 setup.py install
+          poetry install
       - name: Lint with flake8
         run: |
           # stop the build if there are Python syntax errors or undefined names
-          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          poetry run flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
           # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+          poetry run flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
   pypi_publish:
     runs-on: ubuntu-latest
@@ -58,18 +59,27 @@ jobs:
         uses: actions/setup-python@v1
         with:
           python-version: ${{ matrix.python-version }}
+      - name: Install pipx and poetry
+        run: |
+          python3 -m pip install pipx
+          python3 -m pipx ensurepath
+          pipx install poetry
       - name: Push to PyPi (https://pypi.org/project/tapdance/)  (build number ${{ github.run_number }})
         env:
           BRANCH_NAME: ${{ github.ref }}
           PYPI_USER: ${{ secrets.PYPI_USER }}
           PYPI_PASS: ${{ secrets.PYPI_SECRET }}
         run: |
-          echo -e "Installing twine...\n\n"
-          pip install twine
-          echo -e "\nCreating setup package...\n\n"
-          python setup.py sdist
-          echo -e "\nPublishing to version ref '$VERSION'...\n\n"
-          twine upload -u $PYPI_USER -p $PYPI_PASS dist/*
+          if [[ "$BRANCH_NAME" == *master ]]
+          then
+            poetry version --short
+          else
+            poetry version $(poetry version --short)-dev.$GITHUB_RUN_NUMBER
+            poetry version --short
+          fi
+          echo -e "\nPublishing to version ref '$(poetry version --short)'...\n\n"
+          poetry config http-basic.pypi $PYPI_USER $PYPI_PASS
+          poetry publish --build
       - name: Wait up to 3 minutes for PyPi availability
         run: |
           pwd

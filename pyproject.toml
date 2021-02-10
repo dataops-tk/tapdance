@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "tapdance"
+version = "0.9.5"
+description = "Tapdance is an orchestration layer for the open source Singer tap platform."
+authors = ["AJ Steers <aj.steers@slalom.com>"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+docker = "^4.4.1"
+dock-r = "^0.2.0"
+fire = "^0.4.0"
+logless = "^0.2.1"
+PyYAML = "^5.4.1"
+runnow = "<0.2.0,>=0.1.0.14"
+uio = "^0.2.0"
+importlib-metadata = "^3.4.0"
+
+[tool.poetry.dev-dependencies]
+
+[tool.poetry.extras]
+AWS = ["boto3", "s3fs"]
+Azure = ["azure-storage-blob", "azure-storage-file-datalake"]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
