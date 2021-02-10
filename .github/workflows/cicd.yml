@@ -129,8 +129,13 @@ jobs:
         uses: actions/setup-python@v1
         with:
           python-version: 3.7
+      - name: Install pipx and poetry
+        run: |
+          python3 -m pip install pipx
+          python3 -m pipx ensurepath
+          pipx install poetry
       - name: Install tapdance
-        run: python3 setup.py install
+        run: poetry install
       - name: Login to docker
         run: docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_SECRET }}
       - name: Build and push all *prioritized* singer images (build number ${{ github.run_number }})
