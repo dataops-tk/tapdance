@@ -22,6 +22,10 @@ importlib-metadata = "^3.4.0"
 AWS = ["boto3", "s3fs"]
 Azure = ["azure-storage-blob", "azure-storage-file-datalake"]
 
+[tool.poetry.scripts]
+tapdance = "tapdance.cli:main"
+
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
+
