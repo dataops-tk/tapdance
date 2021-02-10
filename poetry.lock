@@ -110,18 +110,18 @@ test = ["pytest (>=6.0)", "pytest-cov", "pytest-subtests", "pytest-xdist", "pret
 
 [[package]]
 name = "dock-r"
-version = "0.2.0.11"
-description = "dock-r - Tools to go faster with docker."
+version = "0.2.1"
+description = "Tools to go faster with docker."
 category = "main"
 optional = false
-python-versions = "*"
+python-versions = ">=3.7,<4.0"
 
 [package.dependencies]
-docker = "*"
-fire = "*"
-logless = "*"
-runnow = "*"
-uio = "*"
+docker = ">=4.4.1,<5.0.0"
+fire = ">=0.4.0,<0.5.0"
+logless = ">=0.2.1,<0.3.0"
+runnow = ">=0.1.0,<0.2.0"
+uio = ">=0.2.0,<0.3.0"
 
 [[package]]
 name = "docker"
@@ -414,7 +414,7 @@ python-versions = "*"
 
 [[package]]
 name = "uio"
-version = "0.2.1"
+version = "0.2.4"
 description = "Universal IO (uio) library."
 category = "main"
 optional = false
@@ -424,6 +424,10 @@ python-versions = ">=3.6,<4.0"
 fire = ">=0.4.0,<0.5.0"
 logless = ">=0.2.2,<0.3.0"
 runnow = ">=0.1.0,<0.2.0"
+
+[package.extras]
+azure = ["azure-storage-blob (>=12.7.1,<13.0.0)", "azure-storage-file-datalake (>=12.2.3,<13.0.0)"]
+aws = ["boto3 (>=1.17.5,<2.0.0)", "s3fs (<0.5.2)"]
 
 [[package]]
 name = "urllib3"
@@ -476,7 +480,7 @@ azure = ["azure-storage-blob", "azure-storage-file-datalake"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "1e3c80e417be989b18a55db7e1fda3642fa7a9e99036a6057e85fe1b2955e8d1"
+content-hash = "ee504f2734bb1aa1bd98045dde4b7f7165acee29c014383718b7fb21b8735697"
 
 [metadata.files]
 azure-core = [
@@ -555,7 +559,8 @@ cryptography = [
     {file = "cryptography-3.4.4.tar.gz", hash = "sha256:ee5e19f0856b6fbbdbab15c2787ca65d203801d2d65d0b8de6218f424206c848"},
 ]
 dock-r = [
-    {file = "dock-r-0.2.0.11.tar.gz", hash = "sha256:04359e472d0ff921052f0e0d76395ce3fa476e24ceb12786df2ad421d31bbfea"},
+    {file = "dock-r-0.2.1.tar.gz", hash = "sha256:feabf4a9ce0cbca5e3c4ffbb19cca2e7eea59590415c41cd08d271cab0f47141"},
+    {file = "dock_r-0.2.1-py3-none-any.whl", hash = "sha256:726c6a804b6dc4a7121d090c970e630ed3b40371b8356eb3862c7996bd5cc6b2"},
 ]
 docker = [
     {file = "docker-4.4.1-py2.py3-none-any.whl", hash = "sha256:e455fa49aabd4f22da9f4e1c1f9d16308286adc60abaf64bf3e1feafaed81d06"},
@@ -708,8 +713,8 @@ typing-extensions = [
     {file = "typing_extensions-3.7.4.3.tar.gz", hash = "sha256:99d4073b617d30288f569d3f13d2bd7548c3a7e4c8de87db09a9d29bb3a4a60c"},
 ]
 uio = [
-    {file = "uio-0.2.1-py3-none-any.whl", hash = "sha256:67c5b406925b008aa7a78803728a065e637a8c7801dc100c1b0a7dbaee16c63c"},
-    {file = "uio-0.2.1.tar.gz", hash = "sha256:58ffd8380ef15d3e6bbeb9eabc9e2453ece270f6b8ebac226e109f1234ab518f"},
+    {file = "uio-0.2.4-py3-none-any.whl", hash = "sha256:3a8443dc81f9029e41d146b19ac6f996254624a1b1e1b98c13b40fa319a9db0f"},
+    {file = "uio-0.2.4.tar.gz", hash = "sha256:c930c50e7dba1f045a1fcfb6f814f957db8f229cd7e66afc460df30a76c38f1e"},
 ]
 urllib3 = [
     {file = "urllib3-1.26.3-py2.py3-none-any.whl", hash = "sha256:1b465e494e3e0d8939b50680403e3aedaa2bc434b7d5af64dfd3c958d7f5ae80"},
