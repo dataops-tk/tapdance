@@ -1,4 +1,4 @@
-ARG source_image=python:3.8
+ARG source_image=python:3.7
 FROM ${source_image}
 
 #anything other than false will trigger a pre-release build
