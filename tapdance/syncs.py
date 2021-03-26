@@ -109,7 +109,7 @@ def sync(
     config.validate_replication_strategy(replication_strategy)
 
     logging.info(f"sync: table_name param (before logic): '{table_name}'")
-    logging.info(f"sync: TABLE_NAME param (from tap_settings): '{tap_settings.get("TABLE_NAME", "None")}'")
+    #logging.info(f"sync: TABLE_NAME param (from tap_settings): '{tap_settings.get("TABLE_NAME", "None")}'")
     table_name = table_name or tap_settings.get("TABLE_NAME", None)
     logging.info(f"sync: table_name param (after logic): '{table_name}'")
     exclude_tables = exclude_tables or tap_settings.get("EXCLUDE_TABLES", None)
