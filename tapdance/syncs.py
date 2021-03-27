@@ -15,7 +15,7 @@ logging = get_logger("tapdance")
 def sync(
     tap_name: str,
     target_name: str = "csv",
-    table_name: str = "*",
+    table_name: Optional[str] = None,
     taps_dir: Optional[str] = None,
     *,
     dockerized: Optional[bool] = None,
@@ -43,9 +43,9 @@ def sync(
         (Default="csv")
     table_name : {str}
         The name of the table to sync. To sync multiple tables, specify
-        a comma-separated list of tables surrounded by queare brackets (e.g. "[tb1,tbl2]"),
-        or use "*" to sync all table.
-        (Default="*")
+        a comma-separated list of tables surrounded by square brackets (e.g. "[tb1,tbl2]"),
+        or use "*" or None to sync all tables.
+        (Default=None)
     dockerized : {bool}
         True or False to force whether the command is run
         dockerized. If omitted, the best option will be selected automatically.
