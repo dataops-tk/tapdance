@@ -472,7 +472,6 @@ def get_table_list(
     List[str]
         A list of table names selected.
     """
-    logging.info(f"get_table_list: table_filter param (before logic): '{table_filter}'")
     if isinstance(table_filter, list):
         list_of_tables = table_filter
     elif table_filter is None or table_filter == "*":
@@ -495,7 +494,6 @@ def get_table_list(
             )
         logging.info(f"Table(s) to exclude from sync: {', '.join(exclude_tables)}")
         list_of_tables = [t for t in list_of_tables if t not in exclude_tables]
-        logging.info(f"get_table_list: list_of_tables param (after logic) {', '.join(list_of_tables)}")
     return list_of_tables
 
 
