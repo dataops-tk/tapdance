@@ -1,3 +1,7 @@
+_**Decrecation notice:** The author of Tapdance ([AJ/Aaron Steers](https://github.com/aaronsteers)) has joined forces with [Meltano](melltano.com) to build the end-to-end DataOps platform of the future. Tapdance will remain free to use but I'm not actively developing it. See my [blog post](https://meltano.com/blog/2021/03/29/meltano-is-special/) for more info on why I made this decision, and [find me on Slack](https://join.slack.com/t/meltano/shared_invite/zt-obgpdeba-7yrqKhwyMBfdHDXsZY8G7Q) if you have questions about what we're building and how you can transition your data platform to Meltano._
+
+---------------------------
+
 # Tapdance
 
 Tapdance is an orchestration layer for the open source Singer tap platform.
