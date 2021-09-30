@@ -40,7 +40,6 @@ singer-targets:
 
   # Custom forks with pending PRs:
   - { name: target-snowflake,  alias: target-snowflake-test, source: git+https://github.com/aaronsteers/pipelinewise-target-snowflake@feature/aaronsteers-retain-s3-files }
-  - { name: target-s3-csv,     alias: target-s3-csv-test,    source: git+https://github.com/aaronsteers/pipelinewise-target-s3-csv@feat/aws-access-token }
 
 failing-taps:
 
