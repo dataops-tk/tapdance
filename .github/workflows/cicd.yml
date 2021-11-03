@@ -142,8 +142,8 @@ jobs:
         run: |
           cd docker
           poetry run tapdance build_image sparkthink snowflake-test --push $PRE_FLAG
-          poetry run tapdance build_image powerbi-metadata snowflake-test --push $PRE_FLAG
           poetry run tapdance build_image dbt snowflake-test --push $PRE_FLAG
+          poetry run tapdance build_image powerbi-metadata snowflake-test --push $PRE_FLAG
           poetry run tapdance build_image mssql snowflake-test --push $PRE_FLAG
         # poetry run tapdance build_image pardot snowflake-test --push $PRE_FLAG
         # poetry run tapdance build_image salesforce snowflake-test --push $PRE_FLAG
