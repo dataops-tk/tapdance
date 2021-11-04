@@ -98,6 +98,7 @@ def get_or_create_config(
     taps_dir: str = None,
     config_dir: str = None,
     config_file: str = None,
+    config_file_required: bool = True,
 ) -> Tuple[str, Dict[str, Any]]:
     """
     Return a path to the configuration file and a dictionary of settings values.
@@ -118,15 +119,22 @@ def get_or_create_config(
     tmp_path = f"{secrets_path}/tmp/{plugin_name}-config.json"
 
     orchestrator_env_vars = get_plugin_settings_from_env(plugin_name, meta_args=True)
+    expected_config_file_path = f"{secrets_path}/{plugin_name}-config.json"
     config_file = config_file or orchestrator_env_vars.get("CONFIG_FILE", None)
-    if (config_file is not None) and str(config_file).lower() == "false":
-        logging.info(f"Skipping check for '{plugin_name}' config (`config_file=False`)")
+    if ((config_file is not None) and str(config_file).lower() == "false") or (
+        (not config_file_required) and not uio.file_exists(expected_config_file_path)
+    ):
+        logging.info(
+            f"Skipping check for '{plugin_name}' config "
+            f"(`config_file={config_file}`, "
+            f"`config_file_required={config_file_required}`)"
+        )
         use_tmp_file = True
         config_file = tmp_path
         conf_dict = {}  # Start with empty config
         orchestrator_settings = orchestrator_env_vars
     else:
-        config_file = config_file or f"{secrets_path}/{plugin_name}-config.json"
+        config_file = config_file or expected_config_file_path
         if not uio.file_exists(config_file):
             raise FileExistsError(
                 f"Could not find '{plugin_name}' config at expected path: {config_file}"
