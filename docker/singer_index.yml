@@ -8,6 +8,7 @@
 singer-taps:
   - { name: tap-adwords }
   - { name: tap-covid-19 }
+  - { name: tap-dbt }
   - { name: tap-dynamodb,   source: git+https://github.com/aaronsteers/tap-dynamodb@master }
   - { name: tap-exchangeratesapi, source: git+https://github.com/aaronsteers/tap-exchangeratesapi@feature/discovery } # https://github.com/singer-io/tap-exchangeratesapi/pull/8
   - { name: tap-jira }
@@ -26,6 +27,7 @@ singer-taps:
   - { name: tap-salesforce,  alias: tap-salesforce-pw, source: pipelinewise-tap-salesforce }
   - { name: tap-sftp }
   - { name: tap-snowflake,  source: pipelinewise-tap-snowflake }
+  - { name: tap-sparkthink, source: git+https://github.com/slalom/tap-sparkthink.git@main }
   - { name: tap-workday-raas }
   - { name: tap-zendesk }
 
@@ -38,7 +40,6 @@ singer-targets:
 
   # Custom forks with pending PRs:
   - { name: target-snowflake,  alias: target-snowflake-test, source: git+https://github.com/aaronsteers/pipelinewise-target-snowflake@feature/aaronsteers-retain-s3-files }
-  - { name: target-s3-csv,     alias: target-s3-csv-test,    source: git+https://github.com/aaronsteers/pipelinewise-target-s3-csv@feat/aws-access-token }
 
 failing-taps:
 
