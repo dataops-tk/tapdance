@@ -20,7 +20,7 @@ jobs:
     steps:
       - name: Clone git repo
         uses: actions/checkout@v1
-      - name: Initialize 'pre' flag if not on main branch
+      - name: Initialize 'pre' flag based on input
         run: |
           if [[ ${{ github.event.inputs.pre_flag }} == "1" ]]
           then
