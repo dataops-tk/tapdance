@@ -10,6 +10,9 @@ on:
       target_name:
         description: "Target Name (from singer_index.yml)"
         required: true
+      pre_flag:
+        description: "Add --pre flag to image name? (Enter 1 (Yes) or 0 (No))"
+        required: true
 
 jobs:
   docker_builds:
@@ -19,14 +22,10 @@ jobs:
         uses: actions/checkout@v1
       - name: Initialize 'pre' flag if not on main branch
         run: |
-          if [[ "${{ github.ref }}" == *main ]]
-          then
-            echo "PRE_FLAG=" >> $GITHUB_ENV
-          elif [[ "${{ github.ref }}" == *master ]]
-          then
-            echo "PRE_FLAG=" >> $GITHUB_ENV
-          else
+          if [[ ${{ github.event.inputs.pre_flag }} == "1" ]]
             echo "PRE_FLAG=--pre" >> $GITHUB_ENV
+          else
+            echo "PRE_FLAG=" >> $GITHUB_ENV
           fi
       - name: Print version, branch, and prerelease flag
         run: |
