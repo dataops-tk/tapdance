@@ -1,0 +1,54 @@
+name: Manual Docker Build and Push
+
+on:
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+    inputs:
+      tap_name:
+        description: "Tap Name (from singer_index.yml)"
+        required: true
+      target_name:
+        description: "Target Name (from singer_index.yml)"
+        required: true
+      pre_flag:
+        description: "Add --pre flag to image name? (Enter 1 (Yes) or 0 (No))"
+        required: true
+
+jobs:
+  docker_builds:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone git repo
+        uses: actions/checkout@v1
+      - name: Initialize 'pre' flag if not on main branch
+        run: |
+          if [[ ${{ github.event.inputs.pre_flag }} == "1" ]]
+            echo "PRE_FLAG=--pre" >> $GITHUB_ENV
+          else
+            echo "PRE_FLAG=" >> $GITHUB_ENV
+          fi
+      - name: Print version, branch, and prerelease flag
+        run: |
+          echo "Build Number: $GITHUB_RUN_NUMBER"
+          echo "Version:      $(cat VERSION).$GITHUB_RUN_NUMBER"
+          echo "Branch Name:  ${{ github.ref }}"
+          echo "PRE_FLAG:     $PRE_FLAG"
+      - name: Set up Python 3.7
+        uses: actions/setup-python@v1
+        with:
+          python-version: 3.7
+      - name: Install pipx and poetry
+        run: |
+          python3 -m pip install pipx
+          python3 -m pipx ensurepath
+          pipx install poetry
+      - name: Install tapdance
+        run: poetry install
+      - name: Login to docker
+        run: docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_SECRET }}
+      - name: Build and push input singer images (build number ${{ github.run_number }})
+        run: |
+          cd docker
+          poetry run tapdance build_image ${{ github.event.inputs.tap_name }} ${{ github.event.inputs.target_name }} --push $PRE_FLAG
+      - name: Print list of images
+        run: docker image ls
