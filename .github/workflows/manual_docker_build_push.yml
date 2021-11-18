@@ -23,6 +23,7 @@ jobs:
       - name: Initialize 'pre' flag if not on main branch
         run: |
           if [[ ${{ github.event.inputs.pre_flag }} == "1" ]]
+          then
             echo "PRE_FLAG=--pre" >> $GITHUB_ENV
           else
             echo "PRE_FLAG=" >> $GITHUB_ENV
