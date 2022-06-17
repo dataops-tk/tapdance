@@ -31,6 +31,9 @@ singer-taps:
   - { name: tap-workday-raas }
   - { name: tap-zendesk }
 
+  # Custom forks with pending PRs:
+  - { name: tap-s3-csv,      alias: tap-s3-csv-test, source: git+https://github.com/jtimeus-slalom/pipelinewise-tap-s3-csv@accept-catalog-arg }
+
 singer-targets:
   - { name: target-csv }
   - { name: target-postgres,  source: pipelinewise-target-postgres }
