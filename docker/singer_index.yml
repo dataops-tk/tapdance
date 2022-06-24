@@ -32,7 +32,7 @@ singer-taps:
   - { name: tap-zendesk }
 
   # Custom forks with pending PRs:
-  - { name: tap-s3-csv,      alias: tap-s3-csv-test, source: git+https://github.com/jtimeus-slalom/pipelinewise-tap-s3-csv@debug-table-config }
+  - { name: tap-s3-csv,      alias: tap-s3-csv-test, source: git+https://github.com/jtimeus-slalom/pipelinewise-tap-s3-csv@master }
 
 singer-targets:
   - { name: target-csv }
