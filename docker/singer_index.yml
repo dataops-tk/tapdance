@@ -20,7 +20,7 @@ singer-taps:
   - { name: tap-pardot }
   - { name: tap-pardot,     source: git+https://github.com/dreamdata-io/tap-pardot.git@master,  alias: tap-pardot-dreamdata-io }
   - { name: tap-pardot }
-  - { name: tap-podbean,   source: git+https://github.com/robby-rob-slalom/tap-podbean@development }
+  - { name: tap-podbean,    source: git+https://github.com/Slalom-Consulting/tap-podbean.git@main }
   - { name: tap-postgres,   source: pipelinewise-tap-postgres }
   - { name: tap-powerbi-metadata }
   - { name: tap-s3-csv,     source: pipelinewise-tap-s3-csv }
