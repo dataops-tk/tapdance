@@ -7,7 +7,7 @@
 
 singer-taps:
   - { name: tap-adwords }
-  - { name: tap-atlassian-scim, source: git+https://github.com/cjgonzalez-slalom/tap-atlassian-scim@main }
+  - { name: tap-atlassian-scim, source: git+https://github.com/Slalom-Consulting/tap-atlassian-scim.git@main }
   - { name: tap-covid-19 }
   - { name: tap-dbt }
   - { name: tap-dynamodb,   source: git+https://github.com/aaronsteers/tap-dynamodb@master }
@@ -34,8 +34,8 @@ singer-taps:
   - { name: tap-zendesk }
 
   # Custom forks with pending PRs:
-  - { name: tap-mysql,       alias: tap-mysql-ssh, source: git+https://github.com/mbaillergeon-slalom/pipelinewise-tap-mysql@master }
-  - { name: tap-s3-csv,      alias: tap-s3-csv-test, source: git+https://github.com/jtimeus-slalom/pipelinewise-tap-s3-csv@master }
+  - { name: tap-mysql,       alias: tap-mysql-ssh, source: git+https://github.com/Slalom-Consulting/pipelinewise-tap-mysql.git@master }
+  - { name: tap-s3-csv,      alias: tap-s3-csv-test, source: git+https://github.com/Slalom-Consulting/pipelinewise-tap-s3-csv.git@master }
 
 singer-targets:
   - { name: target-csv }
