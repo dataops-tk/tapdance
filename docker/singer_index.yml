@@ -6,6 +6,7 @@
 #  - alias  - if supporting multiple forks of a tap, this provides a means to differentiate
 
 singer-taps:
+  - { name: tap-adobe-umapi, source: git+https://github.com/Slalom-Consulting/tap-adobe-umapi.git@main }
   - { name: tap-adwords }
   - { name: tap-atlassian-scim, source: git+https://github.com/Slalom-Consulting/tap-atlassian-scim.git@main }
   - { name: tap-covid-19 }
