@@ -39,6 +39,7 @@ singer-taps:
   - { name: tap-mysql,       alias: tap-mysql-ssh, source: git+https://github.com/Slalom-Consulting/pipelinewise-tap-mysql.git@master }
   - { name: tap-s3-csv,      alias: tap-s3-csv-test, source: git+https://github.com/Slalom-Consulting/pipelinewise-tap-s3-csv.git@master }
   - { name: tap-salesforce,  alias: tap-salesforce-test, source: git+https://github.com/Slalom-Consulting/tap-salesforce.git@bump-api-to-version-54 }
+  - { name: tap-snowflake,   alias: tap-snowflake-test, source: git+https://github.com/Slalom-Consulting/pipelinewise-tap-snowflake.git@feature/DAS-14685-remove-tz-offset }
 
 singer-targets:
   - { name: target-csv }
