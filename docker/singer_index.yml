@@ -30,6 +30,7 @@ singer-taps:
   - { name: tap-salesforce,  alias: tap-salesforce-singer }
   - { name: tap-salesforce,  alias: tap-salesforce-pw, source: pipelinewise-tap-salesforce }
   - { name: tap-sftp }
+  - { name: tap-slack,      source: git+https://github.com/MeltanoLabs/tap-slack@main }
   - { name: tap-snowflake,  source: pipelinewise-tap-snowflake }
   - { name: tap-sparkthink, source: git+https://github.com/slalom/tap-sparkthink.git@main }
   - { name: tap-workday-raas }
