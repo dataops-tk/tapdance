@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "tapdance"
-version = "0.9.9"
+version = "0.9.10"
 description = "Tapdance is an orchestration layer for the open source Singer tap platform."
 authors = ["AJ Steers <aj.steers@slalom.com>"]
 license = "MIT"
@@ -15,6 +15,8 @@ PyYAML = "^5.4.1"
 runnow = "<0.2.0,>=0.1.0.14"
 uio = "^0.2.0"
 importlib-metadata = "^3.4.0"
+backoff = "^2.2.1"
+botocore = "^1.29.125"
 
 # Optional Extras:
 azure-storage-blob          = {version = "^12.7.1", optional = true}

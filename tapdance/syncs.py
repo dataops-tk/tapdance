@@ -5,7 +5,9 @@ import os
 from typing import List, Optional
 
 import uio
+import backoff
 import runnow
+from botocore.exceptions import ConnectionClosedError
 from logless import get_logger, logged
 from tapdance import config, docker, plans, states
 
@@ -274,4 +276,16 @@ def _sync_one_table(
             f"This can be caused by having no data, or no new data, in the source table."
         )
     else:
-        uio.upload_file(local_state_file_out, table_state_file)
+        upload_state_file(local_state_file_out, table_state_file)
+
+def log_backoff_attempt(details):
+   logging.warrning(f'Error dectected communicating with AWS, triggering backoff: {details.get("tries")}')
+
+@backoff.on_exception(
+    backoff.expo,
+    ConnectionClosedError,
+    max_tries=3,
+    on_backoff=log_backoff_attempt
+)
+def upload_state_file(local_state_file_out, table_state_file):
+    uio.upload_file(local_state_file_out, table_state_file)
