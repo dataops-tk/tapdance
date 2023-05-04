@@ -34,10 +34,10 @@ jobs:
           echo "Version:      $(cat VERSION).$GITHUB_RUN_NUMBER"
           echo "Branch Name:  ${{ github.ref }}"
           echo "PRE_FLAG:     $PRE_FLAG"
-      - name: Set up Python 3.7
+      - name: Set up Python 3.8
         uses: actions/setup-python@v1
         with:
-          python-version: 3.7
+          python-version: 3.8
       - name: Install pipx and poetry
         run: |
           python3 -m pip install pipx
