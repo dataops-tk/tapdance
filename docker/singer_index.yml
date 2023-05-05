@@ -51,7 +51,7 @@ singer-targets:
   - { name: target-snowflake, source: pipelinewise-target-snowflake }
 
   # Custom forks with pending PRs:
-  - { name: target-snowflake,  alias: target-snowflake-test, source: git+https://github.com/Slalom-Consulting/pipelinewise-target-snowflake@feature/cast-configurations-to-int }
+  - { name: target-snowflake,  alias: target-snowflake-test, source: git+https://github.com/Slalom-Consulting/pipelinewise-target-snowflake@feature/add-missing-dependency }
 
 failing-taps:
 
