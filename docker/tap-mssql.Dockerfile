@@ -3,7 +3,7 @@
 FROM ghcr.io/slalom/tap-mssql:latest as tap
 
 
-FROM python:3.7
+FROM python:3.8
 
 ARG prerelease=false
 
