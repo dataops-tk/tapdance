@@ -8,6 +8,8 @@ from pathlib import Path
 from logless import get_logger, logged
 from typing import Optional, Dict, Any, Tuple, List, Union
 import uio
+import backoff
+from botocore.exceptions import ConnectionClosedError
 
 logging = get_logger("tapdance")
 
@@ -194,8 +196,20 @@ def get_taps_dir(override: str = None) -> str:
         return value will be a local copy of the remote path.
     """
     taps_dir = override or os.environ.get(ENV_TAP_CONFIG_DIR, ".")
-    return uio.make_local(taps_dir)  # if remote path provided, download locally
 
+    return make_tap_dir_local(taps_dir) # if remote path provided, download locally
+
+def log_backoff_attempt(details):
+    logging.warning(f'Error detected communicating with AWS downloading config files, triggering backoff: {details.get("tries")}')
+
+@backoff.on_exception(
+        backoff.expo,
+        ConnectionClosedError,
+        max_tries=3,
+        on_backoff=log_backoff_attempt
+)
+def make_tap_dir_local(taps_dir):
+    return uio.make_local(taps_dir)
 
 def get_log_dir(override: str = None) -> Optional[str]:
     """Return the remote logging dir, or None if logging not configured."""

@@ -279,7 +279,7 @@ def _sync_one_table(
         upload_state_file(local_state_file_out, table_state_file)
 
 def log_backoff_attempt(details):
-   logging.warrning(f'Error dectected communicating with AWS, triggering backoff: {details.get("tries")}')
+   logging.warning(f'Error detected communicating with AWS uploading state file, triggering backoff: {details.get("tries")}')
 
 @backoff.on_exception(
     backoff.expo,

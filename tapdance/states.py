@@ -4,6 +4,8 @@ import json
 
 from logless import get_logger
 import uio
+import backoff
+from botocore.exceptions import ConnectionClosedError
 
 logging = get_logger("tapdance")
 
@@ -29,15 +31,29 @@ def make_aggregate_state_file(raw_json_lines_file: str, output_json_file: str) -
         Path to use when saving the aggregated json file.
     """
     try:
-        uio.create_text_file(
+        download_state_file(
             output_json_file,
-            get_aggregate_state(uio.get_text_file_contents(raw_json_lines_file)),
+            get_aggregate_state(uio.get_text_file_contents(raw_json_lines_file))
         )
     except ValueError as ex:
         raise ValueError(
             f"State file from '{raw_json_lines_file}' is not valid JSON or JSONL. "
             f"Please either delete or fix the file and then retry. {ex}"
         )
+
+def log_backoff_attempt(details):
+   logging.warning(f'Error detected communicating with AWS downloading state file, triggering backoff: {details.get("tries")}')
+
+@backoff.on_exception(
+    backoff.expo,
+    ConnectionClosedError,
+    max_tries=3,
+    on_backoff=log_backoff_attempt
+)
+def download_state_file(output_json_file,aggregate_state):
+        uio.create_text_file(
+            output_json_file,
+            aggregate_state)
 
 
 def get_aggregate_state(raw_json_lines_text: str) -> str:
