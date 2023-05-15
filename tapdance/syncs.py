@@ -127,7 +127,7 @@ def sync(
     catalog_dir = catalog_dir or config.get_tap_output_dir(tap_name, taps_dir)
     log_dir = config.get_log_dir(log_dir)
     full_catalog_file = f"{catalog_dir}/{tap_name}-catalog-selected.json"
-    if rescan or rules_file or not uio.file_exists(full_catalog_file):
+    if rescan or rules_file or not s3_file_exists(full_catalog_file):
         plans.plan(
             tap_name,
             dockerized=dockerized,
@@ -199,7 +199,7 @@ def _sync_one_table(
         pipeline_version_num,
     )["table_state_file"]
     tap_args = f"--config {config_file} --catalog {table_catalog_file} "
-    if uio.file_exists(table_state_file):
+    if s3_file_exists(table_state_file):
         local_state_file_in = os.path.join(
             config.get_tap_output_dir(tap_name, taps_dir),
             f"{tap_name}-{table_name}-state.json",
@@ -270,7 +270,7 @@ def _sync_one_table(
             f"{local_state_file_out}"
         )
     runnow.run(sync_cmd, hide=hide_cmd)
-    if not uio.file_exists(local_state_file_out):
+    if not s3_file_exists(local_state_file_out):
         logging.warning(
             f"State file does not exist at path '{local_state_file_out}'. Skipping upload. "
             f"This can be caused by having no data, or no new data, in the source table."
@@ -278,14 +278,26 @@ def _sync_one_table(
     else:
         upload_state_file(local_state_file_out, table_state_file)
 
-def log_backoff_attempt(details):
+def log_state_backoff_attempt(details):
    logging.warning(f'Error detected communicating with AWS uploading state file, triggering backoff: {details.get("tries")}')
+
+def log_file_exists_backoff_attempt(details):
+   logging.warning(f'Error detected communicating with AWS checking if a file exists, triggering backoff: {details.get("tries")}')
 
 @backoff.on_exception(
     backoff.expo,
     ConnectionClosedError,
     max_tries=3,
-    on_backoff=log_backoff_attempt
+    on_backoff=log_state_backoff_attempt
 )
 def upload_state_file(local_state_file_out, table_state_file):
     uio.upload_file(local_state_file_out, table_state_file)
+
+@backoff.on_exception(
+    backoff.expo,
+    ConnectionClosedError,
+    max_tries=3,
+    on_backoff=log_file_exists_backoff_attempt
+)
+def s3_file_exists(file_name):
+    return uio.file_exists(file_name)

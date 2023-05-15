@@ -33,7 +33,7 @@ def make_aggregate_state_file(raw_json_lines_file: str, output_json_file: str) -
     try:
         download_state_file(
             output_json_file,
-            get_aggregate_state(uio.get_text_file_contents(raw_json_lines_file))
+            get_aggregate_state(download_raw_state_file_contents(raw_json_lines_file))
         )
     except ValueError as ex:
         raise ValueError(
@@ -43,6 +43,15 @@ def make_aggregate_state_file(raw_json_lines_file: str, output_json_file: str) -
 
 def log_backoff_attempt(details):
    logging.warning(f'Error detected communicating with AWS downloading state file, triggering backoff: {details.get("tries")}')
+
+@backoff.on_exception(
+    backoff.expo,
+    ConnectionClosedError,
+    max_tries=3,
+    on_backoff=log_backoff_attempt
+)
+def download_raw_state_file_contents(raw_json_lines_file):
+    return uio.get_text_file_contents(raw_json_lines_file)
 
 @backoff.on_exception(
     backoff.expo,
