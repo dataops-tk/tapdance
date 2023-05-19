@@ -52,6 +52,7 @@ singer-targets:
 
   # Custom forks with pending PRs:
   - { name: target-snowflake,  alias: target-snowflake-test, source: git+https://github.com/Slalom-Consulting/pipelinewise-target-snowflake@feature/add-missing-dependency }
+  - { name: target-snowflake,  alias: target-snowflake-parquet, source: git+https://github.com/mbaillergeon-slalom/pipelinewise-target-snowflake-parquet@add-slalom-features }
 
 failing-taps:
 
