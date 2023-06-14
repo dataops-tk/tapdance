@@ -16,6 +16,7 @@ singer-taps:
   - { name: tap-jira }
   - { name: tap-kafka,      source: pipelinewise-tap-kafka }
   - { name: tap-miro,       source: git+https://github.com/Slalom-Consulting/tap-miro.git@main }
+  - { name: tap-ms-graph,   source: git+https://github.com/Slalom-Consulting/tap-ms-graph.git@main }
   - { name: tap-mssql,      source: tap-mssql.Dockerfile }
   - { name: tap-mysql }
   - { name: tap-oracle }
